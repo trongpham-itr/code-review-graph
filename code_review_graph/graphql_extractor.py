@@ -232,7 +232,11 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
                 stats["edges"] += 1
 
     # ── Step 2: parse resolvers/index.js ───────────────────────────────────
-    resolver_index = _find_file(service_root, ["app/resolvers/index.js", "resolvers/index.js"])
+    resolver_index = _find_file(service_root, [
+        "app/resolvers/index.js",
+        "resolvers/index.js",
+        "app/graphql/resolvers/index.js",
+    ])
     if resolver_index:
         try:
             index_source = resolver_index.read_text(encoding="utf-8", errors="replace")
@@ -253,21 +257,32 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
             resolver_path = str(resolver_file)
             exports = _parse_resolver_exports(res_source)
 
-            for field_key, func_name in exports.items():
+            # Build a unified list of (field_key, func_name, file_path) for edge creation.
+            # For direct exports the file_path is the resolver file itself.
+            # For spread aggregators (exports == {}) we follow ...spread one level deep
+            # so each item carries the child file path where the function is defined.
+            if exports:
+                edge_items: list[tuple[str, str, str]] = [
+                    (fk, fn, resolver_path) for fk, fn in exports.items()
+                ]
+            else:
+                edge_items = _collect_spread_resolver_exports(res_source, resolver_file.parent)
+
+            for field_key, func_name, file_path in edge_items:
                 if field_key == "__resolveReference":
                     # RESOLVES_REF: Function → GQLType (entity type)
                     type_qn = gql_type_qn.get(type_name, f"{schema_path}::{type_name}")
-                    fn_qn = f"{resolver_path}::{func_name}"
+                    fn_qn = f"{file_path}::{func_name}"
                     store.upsert_edge(
-                        EdgeInfo(kind="RESOLVES_REF", source=fn_qn, target=type_qn, file_path=resolver_path)
+                        EdgeInfo(kind="RESOLVES_REF", source=fn_qn, target=type_qn, file_path=file_path)
                     )
                     stats["edges"] += 1
                 else:
                     # RESOLVES: Function → GQLField
                     field_qn = f"{schema_path}::{type_name}.{field_key}"
-                    fn_qn = f"{resolver_path}::{func_name}"
+                    fn_qn = f"{file_path}::{func_name}"
                     store.upsert_edge(
-                        EdgeInfo(kind="RESOLVES", source=fn_qn, target=field_qn, file_path=resolver_path)
+                        EdgeInfo(kind="RESOLVES", source=fn_qn, target=field_qn, file_path=file_path)
                     )
                     stats["edges"] += 1
 
@@ -284,7 +299,12 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
 
     # ── Step 4: parse utils/loaders/index.js ───────────────────────────────
     loaders_index = _find_file(
-        service_root, ["app/utils/loaders/index.js", "utils/loaders/index.js", "app/datasources/loaders/index.js"]
+        service_root, [
+            "app/utils/loaders/index.js",
+            "utils/loaders/index.js",
+            "app/datasources/loaders/index.js",
+            "app/graphql/loaders/index.js",
+        ]
     )
     if loaders_index:
         try:
@@ -636,7 +656,10 @@ def _parse_resolver_index(source: str, resolvers_dir: Path) -> dict[str, Path]:
         req_path = m.group(2)
         resolved = (resolvers_dir / req_path).resolve()
         if not resolved.suffix:
-            resolved = resolved.with_suffix(".js")
+            # Node.js resolution: try path.js first, then path/index.js
+            as_js = resolved.with_suffix(".js")
+            as_index = resolved / "index.js"
+            resolved = as_js if as_js.exists() else (as_index if as_index.exists() else as_js)
         var_to_file[var_name] = resolved
 
     # Step 2: parse module.exports { TypeName: varName, ... }
@@ -683,8 +706,61 @@ def _parse_resolver_exports(source: str) -> dict[str, str]:
         name = m.group(1)
         if name not in result:
             result[name] = name
+    # Pattern 3 — first item in an inline block: { firstItem, secondItem }
+    # Pattern 2 requires a leading comma so it misses the very first identifier.
+    for m in re.finditer(r"^\s*([a-zA-Z_$][\w$]*)(?=\s*,)", exports_block, re.MULTILINE):
+        name = m.group(1)
+        if name not in result:
+            result[name] = name
 
     return result
+
+
+def _collect_spread_resolver_exports(
+    source: str, file_dir: Path
+) -> list[tuple[str, str, str]]:
+    """Follow ``...spread`` exports in a resolver aggregator file (one level deep).
+
+    Handles the pattern where a resolver file only re-exports via spreads::
+
+        const facility = require('./facility');
+        const report = require('./report');
+        module.exports = { ...facility, ...report };
+
+    Returns ``[(field_key, func_name, source_file_path)]`` so callers can emit
+    edges with the correct file path (the child file, not the aggregator).
+    """
+    var_to_file: dict[str, Path] = {}
+    for m in re.finditer(
+        r"(?:const|let|var)\s+(\w+)\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+        source,
+    ):
+        var_name, req_path = m.group(1), m.group(2)
+        resolved = (file_dir / req_path).resolve()
+        if not resolved.suffix:
+            resolved = resolved.with_suffix(".js")
+        var_to_file[var_name] = resolved
+
+    exports_block = _find_exports_block(source)
+    if not exports_block:
+        return []
+
+    results: list[tuple[str, str, str]] = []
+    seen: set[str] = set()
+    for m in re.finditer(r"\.\.\.\s*(\w+)", exports_block):
+        spread_file = var_to_file.get(m.group(1))
+        if spread_file and spread_file.exists():
+            try:
+                spread_source = spread_file.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            file_path = str(spread_file)
+            for field_key, func_name in _parse_resolver_exports(spread_source).items():
+                if field_key not in seen:
+                    results.append((field_key, func_name, file_path))
+                    seen.add(field_key)
+
+    return results
 
 
 def _find_function_ranges(source: str) -> list[tuple[str, int, int]]:
@@ -792,6 +868,7 @@ def _find_loaders_index_path(service_root: Path) -> Optional[str]:
         "app/utils/loaders/index.js",
         "utils/loaders/index.js",
         "app/datasources/loaders/index.js",
+        "app/graphql/loaders/index.js",
     ]
     f = _find_file(service_root, candidates)
     return str(f) if f else None

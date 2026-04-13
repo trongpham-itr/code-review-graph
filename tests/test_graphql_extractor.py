@@ -19,6 +19,7 @@ import pytest
 from code_review_graph.graph import GraphStore
 from code_review_graph.graphql_extractor import (
     BUILTIN_SCALARS,
+    _collect_spread_resolver_exports,
     _find_loaders_usage,
     _parse_gql_field,
     _parse_loaders_index,
@@ -366,6 +367,100 @@ class TestParseResolverExports:
 
 
 # ---------------------------------------------------------------------------
+# _collect_spread_resolver_exports
+# ---------------------------------------------------------------------------
+
+
+def _spread_exports_dict(items: list) -> dict:
+    """Convert _collect_spread_resolver_exports list to {field_key: func_name} for assertions."""
+    return {k: v for k, v, _ in items}
+
+
+class TestCollectSpreadResolverExports:
+    def test_follows_single_spread(self, tmp_path):
+        # facility.js has shorthand exports
+        facility_js = tmp_path / "facility.js"
+        facility_js.write_text(
+            "module.exports = { createFacility, updateFacility };",
+            encoding="utf-8",
+        )
+        source = """
+        const facility = require('./facility');
+        module.exports = { ...facility };
+        """
+        result = _spread_exports_dict(_collect_spread_resolver_exports(source, tmp_path))
+        assert result["createFacility"] == "createFacility"
+        assert result["updateFacility"] == "updateFacility"
+
+    def test_merges_multiple_spreads(self, tmp_path):
+        (tmp_path / "facility.js").write_text(
+            "module.exports = { createFacility };", encoding="utf-8"
+        )
+        (tmp_path / "report.js").write_text(
+            "module.exports = { createReport };", encoding="utf-8"
+        )
+        source = """
+        const facility = require('./facility');
+        const report = require('./report');
+        module.exports = { ...facility, ...report };
+        """
+        result = _spread_exports_dict(_collect_spread_resolver_exports(source, tmp_path))
+        assert "createFacility" in result
+        assert "createReport" in result
+
+    def test_spread_with_explicit_kv_in_child(self, tmp_path):
+        (tmp_path / "event.js").write_text(
+            "module.exports = { updateEvent: resolveUpdateEvent };",
+            encoding="utf-8",
+        )
+        source = """
+        const event = require('./event');
+        module.exports = { ...event };
+        """
+        result = _spread_exports_dict(_collect_spread_resolver_exports(source, tmp_path))
+        assert result["updateEvent"] == "resolveUpdateEvent"
+
+    def test_carries_source_file_path(self, tmp_path):
+        facility_js = tmp_path / "facility.js"
+        facility_js.write_text("module.exports = { createFacility };", encoding="utf-8")
+        source = """
+        const facility = require('./facility');
+        module.exports = { ...facility };
+        """
+        items = _collect_spread_resolver_exports(source, tmp_path)
+        assert len(items) == 1
+        field_key, func_name, file_path = items[0]
+        assert field_key == "createFacility"
+        assert func_name == "createFacility"
+        assert file_path == str(facility_js.resolve())
+
+    def test_missing_file_skipped(self, tmp_path):
+        # require points to a file that does not exist
+        source = """
+        const ghost = require('./nonexistent');
+        module.exports = { ...ghost };
+        """
+        result = _collect_spread_resolver_exports(source, tmp_path)
+        assert result == []
+
+    def test_no_spreads_returns_empty(self, tmp_path):
+        source = "module.exports = {};"
+        assert _collect_spread_resolver_exports(source, tmp_path) == []
+
+    def test_no_module_exports_returns_empty(self, tmp_path):
+        source = "const x = 1;"
+        assert _collect_spread_resolver_exports(source, tmp_path) == []
+
+    def test_spread_var_not_in_require_ignored(self, tmp_path):
+        # ...custom is spread but 'custom' has no require() → ignored safely
+        source = """
+        module.exports = { ...custom };
+        """
+        result = _collect_spread_resolver_exports(source, tmp_path)
+        assert result == []
+
+
+# ---------------------------------------------------------------------------
 # _parse_loaders_index
 # ---------------------------------------------------------------------------
 
@@ -655,3 +750,198 @@ class TestExtractGraphqlForRepo:
         assert node is not None
         assert node.extra.get("is_federation_entity") is True
         assert node.extra.get("key_fields") == "id"
+
+
+# ---------------------------------------------------------------------------
+# Integration: app/graphql/resolvers path (call_center_active pattern)
+# ---------------------------------------------------------------------------
+
+
+def _make_graphql_path_service(base: Path) -> Path:
+    """Service that puts resolvers under app/graphql/resolvers/ instead of app/resolvers/."""
+    base.mkdir(parents=True, exist_ok=True)
+
+    (base / ".schema.gql").write_text(
+        """
+type Query { activeTime(userId: ID!): Int }
+type Mutation { recordActiveTime(userId: ID!, seconds: Int!): Boolean }
+""",
+        encoding="utf-8",
+    )
+
+    resolvers_dir = base / "app" / "graphql" / "resolvers"
+    resolvers_dir.mkdir(parents=True)
+
+    (resolvers_dir / "index.js").write_text(
+        """
+const queryResolver = require('./query');
+const mutationResolver = require('./mutation');
+module.exports = { Query: queryResolver, Mutation: mutationResolver };
+""",
+        encoding="utf-8",
+    )
+    (resolvers_dir / "query.js").write_text(
+        """
+async function activeTime(parent, args, context) { return 0; }
+module.exports = { activeTime };
+""",
+        encoding="utf-8",
+    )
+    (resolvers_dir / "mutation.js").write_text(
+        """
+async function recordActiveTime(parent, args, context) { return true; }
+module.exports = { recordActiveTime };
+""",
+        encoding="utf-8",
+    )
+
+    # empty loaders (mirrors real call_center_active)
+    loaders_dir = base / "app" / "graphql" / "loaders"
+    loaders_dir.mkdir(parents=True)
+    (loaders_dir / "index.js").write_text("module.exports = {};\n", encoding="utf-8")
+
+    return base
+
+
+class TestGraphqlPathService:
+    @pytest.fixture()
+    def store(self, tmp_path):
+        from code_review_graph.graph import GraphStore
+        db = tmp_path / "graph.db"
+        s = GraphStore(str(db))
+        yield s
+        s.close()
+
+    @pytest.fixture()
+    def svc(self, tmp_path):
+        return _make_graphql_path_service(tmp_path / "call_center_active")
+
+    def test_service_discovered(self, svc, store):
+        stats = extract_graphql_for_repo(svc.parent, store)
+        assert stats["services"] == 1
+
+    def test_gqlfield_created(self, svc, store):
+        extract_graphql_for_repo(svc.parent, store)
+        nodes = store.search_nodes("Query.activeTime", limit=5)
+        assert any(n.kind == "GQLField" for n in nodes)
+
+    def test_resolves_edge_created(self, svc, store):
+        extract_graphql_for_repo(svc.parent, store)
+        resolver_path = str(svc / "app" / "graphql" / "resolvers" / "query.js")
+        fn_qn = f"{resolver_path}::activeTime"
+        edges = store.get_edges_by_source(fn_qn)
+        assert any(e.kind == "RESOLVES" for e in edges), (
+            "RESOLVES edge should be created for app/graphql/resolvers path"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Integration: mutation directory with spreads (call_center_api pattern)
+# ---------------------------------------------------------------------------
+
+
+def _make_spread_mutation_service(base: Path) -> Path:
+    """Service where Mutation resolver is a directory that re-exports via spreads."""
+    base.mkdir(parents=True, exist_ok=True)
+
+    (base / ".schema.gql").write_text(
+        """
+type Query { studies: [Study] }
+type Mutation {
+  createFacility(name: String!): Boolean
+  updateFacility(id: ID!, name: String!): Boolean
+  createReport(studyId: ID!): Boolean
+}
+type Study { id: ID! }
+""",
+        encoding="utf-8",
+    )
+
+    resolvers_dir = base / "app" / "resolvers"
+    resolvers_dir.mkdir(parents=True)
+
+    (resolvers_dir / "index.js").write_text(
+        """
+const queryResolver = require('./query');
+const mutationResolver = require('./mutation');
+module.exports = { Query: queryResolver, Mutation: mutationResolver };
+""",
+        encoding="utf-8",
+    )
+    (resolvers_dir / "query.js").write_text(
+        "async function studies() { return []; }\nmodule.exports = { studies };\n",
+        encoding="utf-8",
+    )
+
+    # mutation/ is a directory
+    mut_dir = resolvers_dir / "mutation"
+    mut_dir.mkdir()
+    (mut_dir / "index.js").write_text(
+        """
+const facility = require('./facility');
+const report = require('./report');
+module.exports = { ...facility, ...report };
+""",
+        encoding="utf-8",
+    )
+    (mut_dir / "facility.js").write_text(
+        """
+async function createFacility(parent, args, ctx) { return true; }
+async function updateFacility(parent, args, ctx) { return true; }
+module.exports = { createFacility, updateFacility };
+""",
+        encoding="utf-8",
+    )
+    (mut_dir / "report.js").write_text(
+        """
+async function createReport(parent, args, ctx) { return true; }
+module.exports = { createReport };
+""",
+        encoding="utf-8",
+    )
+
+    return base
+
+
+class TestSpreadMutationService:
+    @pytest.fixture()
+    def store(self, tmp_path):
+        from code_review_graph.graph import GraphStore
+        db = tmp_path / "graph.db"
+        s = GraphStore(str(db))
+        yield s
+        s.close()
+
+    @pytest.fixture()
+    def svc(self, tmp_path):
+        return _make_spread_mutation_service(tmp_path / "call_center_api")
+
+    def test_service_discovered(self, svc, store):
+        stats = extract_graphql_for_repo(svc.parent, store)
+        assert stats["services"] == 1
+
+    def test_resolves_edges_from_facility_spread(self, svc, store):
+        extract_graphql_for_repo(svc.parent, store)
+        mut_dir = svc / "app" / "resolvers" / "mutation"
+        facility_path = str(mut_dir / "facility.js")
+        edges = store.get_edges_by_source(f"{facility_path}::createFacility")
+        assert any(e.kind == "RESOLVES" for e in edges), (
+            "RESOLVES edge should be created via spread fallback for createFacility"
+        )
+
+    def test_resolves_edges_from_report_spread(self, svc, store):
+        extract_graphql_for_repo(svc.parent, store)
+        mut_dir = svc / "app" / "resolvers" / "mutation"
+        report_path = str(mut_dir / "report.js")
+        edges = store.get_edges_by_source(f"{report_path}::createReport")
+        assert any(e.kind == "RESOLVES" for e in edges), (
+            "RESOLVES edge should be created via spread fallback for createReport"
+        )
+
+    def test_query_resolver_still_works(self, svc, store):
+        extract_graphql_for_repo(svc.parent, store)
+        query_path = str(svc / "app" / "resolvers" / "query.js")
+        edges = store.get_edges_by_source(f"{query_path}::studies")
+        assert any(e.kind == "RESOLVES" for e in edges), (
+            "Existing query resolver should still produce RESOLVES edges"
+        )
