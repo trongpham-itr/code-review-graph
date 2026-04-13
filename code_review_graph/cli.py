@@ -252,6 +252,7 @@ def _handle_init(args: argparse.Namespace) -> None:
 
 def main() -> None:
     """Main CLI entry point."""
+    print('Hello World - Editing by PDT')
     ap = argparse.ArgumentParser(
         prog="code-review-graph",
         description="Persistent incremental knowledge graph for code reviews",
