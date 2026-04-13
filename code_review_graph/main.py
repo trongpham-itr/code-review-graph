@@ -32,12 +32,14 @@ from .tools import (
     get_community_func,
     get_docs_section,
     get_flow,
+    get_gql_field,
     get_impact_radius,
     get_minimal_context,
     get_review_context,
     get_wiki_page_func,
     list_communities_func,
     list_flows,
+    list_gql_fields,
     list_graph_stats,
     list_repos_func,
     query_graph,
@@ -701,6 +703,63 @@ def cross_repo_search_tool(
         limit: Maximum results per repo. Default: 20.
     """
     return cross_repo_search_func(query=query, kind=kind, limit=limit)
+
+
+@mcp.tool()
+def list_gql_fields_tool(
+    operation: Optional[str] = None,
+    auth_group: Optional[str] = None,
+    auth_role: Optional[str] = None,
+    repo_root: Optional[str] = None,
+    detail_level: str = "standard",
+) -> dict:
+    """List all GraphQL fields extracted from .schema.gql.
+
+    [EXPLORE] Returns GQLField nodes with operation type, return type,
+    and auth requirements. Useful for auditing API surface area and
+    access control coverage.
+
+    Args:
+        operation: Filter by operation type: "query", "mutation",
+                   "subscription", or "type_field". Omit to return all.
+        auth_group: Filter fields requiring a specific auth group (e.g. "ALL_CLINIC").
+        auth_role: Filter fields requiring a specific role (e.g. "FACILITY_ADMIN").
+        repo_root: Repository root path. Auto-detected if omitted.
+        detail_level: "standard" (full list) or "minimal" (counts only).
+    """
+    return list_gql_fields(
+        operation=operation,
+        auth_group=auth_group,
+        auth_role=auth_role,
+        repo_root=_resolve_repo_root(repo_root),
+        detail_level=detail_level,
+    )
+
+
+@mcp.tool()
+def get_gql_field_tool(
+    field_name: str,
+    parent_type: Optional[str] = None,
+    repo_root: Optional[str] = None,
+) -> dict:
+    """Get the full resolver chain for a single GraphQL field.
+
+    [EXPLORE] Given a field name (e.g. "inboxes" or "Query.inboxes"),
+    returns auth requirements, return type, accepted inputs, resolver
+    function, loaders used, and batch functions backing each loader.
+
+    Args:
+        field_name: Field name (e.g. "inboxes") or "ParentType.fieldName"
+                    (e.g. "Query.inboxes").
+        parent_type: Optional parent type filter (e.g. "Query", "Mutation")
+                     when field_name is ambiguous.
+        repo_root: Repository root path. Auto-detected if omitted.
+    """
+    return get_gql_field(
+        field_name=field_name,
+        parent_type=parent_type,
+        repo_root=_resolve_repo_root(repo_root),
+    )
 
 
 @mcp.prompt()

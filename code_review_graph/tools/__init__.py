@@ -74,6 +74,9 @@ from .query import (
 # -- refactor_tools ---------------------------------------------------------
 from .refactor_tools import apply_refactor_func, refactor_func
 
+# -- graphql_tools ----------------------------------------------------------
+from .graphql_tools import get_gql_field, list_gql_fields
+
 # -- registry_tools ---------------------------------------------------------
 from .registry_tools import cross_repo_search_func, list_repos_func
 
@@ -115,6 +118,9 @@ __all__ = [
     # refactor_tools
     "apply_refactor_func",
     "refactor_func",
+    # graphql_tools
+    "list_gql_fields",
+    "get_gql_field",
     # registry_tools
     "cross_repo_search_func",
     "list_repos_func",

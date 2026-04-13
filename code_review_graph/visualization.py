@@ -578,6 +578,12 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
     <div class="legend-item" data-edge-kind="IMPORTS_FROM"><span class="legend-line l-imports"></span> Imports</div>
     <div class="legend-item" data-edge-kind="INHERITS"><span class="legend-line l-inherits"></span> Inherits</div>
     <div class="legend-item" data-edge-kind="CONTAINS"><span class="legend-line l-contains"></span> Contains</div>
+    <div class="legend-item" data-edge-kind="RESOLVES"><span class="legend-line" style="background:#e3b341"></span> Resolves</div>
+    <div class="legend-item" data-edge-kind="RETURNS"><span class="legend-line" style="background:#a5d6ff"></span> Returns</div>
+    <div class="legend-item" data-edge-kind="ACCEPTS"><span class="legend-line" style="background:#79c0ff"></span> Accepts</div>
+    <div class="legend-item" data-edge-kind="USES_LOADER"><span class="legend-line" style="background:#bc8cff"></span> Uses Loader</div>
+    <div class="legend-item" data-edge-kind="BACKED_BY"><span class="legend-line" style="background:#8957e5"></span> Backed By</div>
+    <div class="legend-item" data-edge-kind="RESOLVES_REF"><span class="legend-line" style="background:#ff7b72"></span> Resolves Ref</div>
   </div>
 </div>
 <div id="filter-panel">
@@ -587,6 +593,9 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
   <label class="filter-item"><input type="checkbox" data-kind="Function" checked> Function</label>
   <label class="filter-item"><input type="checkbox" data-kind="Test" checked> Test</label>
   <label class="filter-item"><input type="checkbox" data-kind="Type" checked> Type</label>
+  <label class="filter-item"><input type="checkbox" data-kind="GQLField" checked> GQLField</label>
+  <label class="filter-item"><input type="checkbox" data-kind="GQLType" checked> GQLType</label>
+  <label class="filter-item"><input type="checkbox" data-kind="Loader" checked> Loader</label>
 </div>
 <div id="controls">
   <input id="search" type="text" placeholder="Search nodes&#8230;" autocomplete="off" spellcheck="false" aria-label="Search graph nodes by name">
@@ -603,9 +612,9 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
 <script>
 "use strict";
 var graphData = __GRAPH_DATA__;
-var KIND_COLOR  = { File:"#58a6ff", Class:"#f0883e", Function:"#3fb950", Test:"#d2a8ff", Type:"#8b949e" };
-var KIND_RADIUS = { File:18, Class:12, Function:6, Test:6, Type:5 };
-var EDGE_COLOR  = { CALLS:"#3fb950", IMPORTS_FROM:"#f0883e", INHERITS:"#d2a8ff", CONTAINS:"rgba(139,148,158,0.15)" };
+var KIND_COLOR  = { File:"#58a6ff", Class:"#f0883e", Function:"#3fb950", Test:"#d2a8ff", Type:"#8b949e", GQLField:"#e3b341", GQLType:"#a5d6ff", Loader:"#bc8cff" };
+var KIND_RADIUS = { File:18, Class:12, Function:6, Test:6, Type:5, GQLField:8, GQLType:10, Loader:8 };
+var EDGE_COLOR  = { CALLS:"#3fb950", IMPORTS_FROM:"#f0883e", INHERITS:"#d2a8ff", CONTAINS:"rgba(139,148,158,0.15)", RESOLVES:"#e3b341", FIELD_OF:"rgba(165,214,255,0.3)", RETURNS:"#a5d6ff", ACCEPTS:"#79c0ff", USES_LOADER:"#bc8cff", BACKED_BY:"#8957e5", RESOLVES_REF:"#ff7b72" };
 var communityColorScale = d3.scaleOrdinal(d3.schemeTableau10);
 var communityColoringOn = false;
 function escH(s) { return !s ? "" : s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/`/g,"&#96;"); }
@@ -1267,12 +1276,16 @@ function escH(s) { return !s ? "" : s.replace(/&/g,"&amp;").replace(/</g,"&lt;")
 
 var KIND_COLOR = {
   Community: "#1f6feb", File: "#58a6ff", Class: "#f0883e",
-  Function: "#3fb950", Test: "#d2a8ff", Type: "#8b949e"
+  Function: "#3fb950", Test: "#d2a8ff", Type: "#8b949e",
+  GQLField: "#e3b341", GQLType: "#a5d6ff", Loader: "#bc8cff"
 };
 var EDGE_COLOR = {
   CROSS_COMMUNITY: "#58a6ff", DEPENDS_ON: "#f0883e",
   CALLS: "#3fb950", IMPORTS_FROM: "#f0883e",
-  INHERITS: "#d2a8ff", CONTAINS: "rgba(139,148,158,0.15)"
+  INHERITS: "#d2a8ff", CONTAINS: "rgba(139,148,158,0.15)",
+  RESOLVES: "#e3b341", FIELD_OF: "rgba(165,214,255,0.3)",
+  RETURNS: "#a5d6ff", ACCEPTS: "#79c0ff",
+  USES_LOADER: "#bc8cff", BACKED_BY: "#8957e5", RESOLVES_REF: "#ff7b72"
 };
 var EDGE_CFG = {
   CROSS_COMMUNITY: { dash: null, width: 2, opacity: 0.6, marker: "" },
@@ -1281,6 +1294,13 @@ var EDGE_CFG = {
   CALLS:           { dash: null, width: 1.5, opacity: 0.7, marker: "url(#arrow-calls)" },
   IMPORTS_FROM:    { dash: "6,3", width: 1.5, opacity: 0.65, marker: "url(#arrow-imports)" },
   INHERITS:        { dash: "3,4", width: 2, opacity: 0.7, marker: "url(#arrow-inherits)" },
+  RESOLVES:        { dash: null, width: 2, opacity: 0.85, marker: "url(#arrow-calls)" },
+  FIELD_OF:        { dash: null, width: 1, opacity: 0.2, marker: "" },
+  RETURNS:         { dash: "4,3", width: 1.5, opacity: 0.6, marker: "url(#arrow-imports)" },
+  ACCEPTS:         { dash: "4,3", width: 1.5, opacity: 0.6, marker: "url(#arrow-imports)" },
+  USES_LOADER:     { dash: "6,3", width: 1.5, opacity: 0.7, marker: "url(#arrow-calls)" },
+  BACKED_BY:       { dash: null, width: 2, opacity: 0.8, marker: "url(#arrow-calls)" },
+  RESOLVES_REF:    { dash: "3,4", width: 2, opacity: 0.8, marker: "url(#arrow-inherits)" },
 };
 function eStyle(d) { return EDGE_CFG[d.kind] || { dash: null, width: 1, opacity: 0.3, marker: "" }; }
 function eColor(d) { return EDGE_COLOR[d.kind] || "#484f58"; }
