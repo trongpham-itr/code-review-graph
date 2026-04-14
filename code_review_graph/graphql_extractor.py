@@ -109,6 +109,18 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
     schema_path = str(schema_file)
     stats = {"gql_types": 0, "gql_fields": 0, "loaders": 0, "edges": 0}
 
+    # ── Step 0: register File node for .schema.gql ────────────────────────
+    # export_graph_data iterates over kind='File' nodes, so GQLType/GQLField
+    # nodes are invisible in visualization unless a File node exists for this path.
+    store.upsert_node(NodeInfo(
+        kind="File",
+        name=str(schema_file),
+        file_path=schema_path,
+        line_start=1,
+        line_end=0,
+        language="graphql",
+    ))
+
     # ── Step 1: parse .schema.gql ──────────────────────────────────────────
     try:
         source = schema_file.read_text(encoding="utf-8", errors="replace")
@@ -275,6 +287,15 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
             loaders_source = ""
 
         loaders_path = str(loaders_index)
+        # Register File node so Loader nodes appear in visualization
+        store.upsert_node(NodeInfo(
+            kind="File",
+            name=str(loaders_index),
+            file_path=loaders_path,
+            line_start=1,
+            line_end=0,
+            language="javascript",
+        ))
         for loader_info in _parse_loaders_index(loaders_source):
             loader_name = loader_info["loader_name"]
             batch_fn = loader_info["batch_function"]
