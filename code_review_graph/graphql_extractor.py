@@ -1141,46 +1141,112 @@ _DS_PATH_HINTS = ("datasource", "controller", "command", "repository")
 _RESOLVER_PATH_HINTS = ("/resolver", "/resolvers")
 
 
-def _find_datasource_function_qualified(store: GraphStore, func_name: str, service_root: str) -> Optional[str]:
+def _find_export_alias_in_file(file_path: str, exported_name: str) -> Optional[str]:
+    """Return the local function name that *exported_name* aliases in *file_path*.
+
+    Handles the CJS pattern:
+        module.exports = { exportedName: actualFn, ... }
+
+    Returns *actualFn* when key == *exported_name* and the value is a plain
+    identifier that differs from the key (i.e. a real alias, not shorthand).
+    Returns ``None`` if no alias is found.
+    """
+    try:
+        source = Path(file_path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+
+    parser = _get_js_parser()
+    if parser is None:
+        return None
+
+    tree = parser.parse(source.encode("utf-8", errors="replace"))
+    obj_node = _find_module_exports_obj(tree.root_node)
+    if obj_node is None:
+        return None
+
+    direct, _ = _parse_exports_obj(obj_node)
+    actual = direct.get(exported_name)
+    # Only return when it's a real alias (value differs from key)
+    if actual and actual != exported_name:
+        return actual
+    return None
+
+
+def _find_datasource_function_qualified(
+    store: GraphStore, func_name: str, service_root: str,
+) -> Optional[str]:
     """Find the datasource/controller Function node for *func_name*.
 
     Searches all Function nodes with that name inside *service_root*, then
     picks the best match using path priority:
       1. Prefer nodes whose path contains a datasource/controller hint.
       2. Fall back to any non-resolver Function node.
+
+    If no direct match exists, scans datasource files for CJS alias exports
+    of the form ``module.exports = { func_name: actualFn }`` and retries
+    with *actualFn*.
+
     Returns None if no suitable match exists.
     """
-    try:
-        nodes = store.search_nodes(func_name, limit=50)
-    except Exception:
-        return None
-
-    candidates: list[str] = []
-    for node in nodes:
-        if node.kind != "Function" or node.name != func_name:
-            continue
-        if not node.file_path.startswith(service_root):
-            continue
-        candidates.append(node.qualified_name)
-
-    if not candidates:
-        return None
-
-    # Strip service_root prefix so path hints match only the repo-relative
-    # portion (avoids false matches on parent dirs like "microservices").
     root_prefix = service_root.rstrip("/") + "/"
+
     def _rel(qn: str) -> str:
         return qn[len(root_prefix):].lower() if qn.startswith(root_prefix) else qn.lower()
 
-    # Priority 1: repo-relative path contains datasource/controller hint
-    for qn in candidates:
-        if any(h in _rel(qn) for h in _DS_PATH_HINTS):
-            return qn
+    def _pick_best(candidates: list[str]) -> Optional[str]:
+        # Priority 1: path contains datasource/controller hint
+        for qn in candidates:
+            if any(h in _rel(qn) for h in _DS_PATH_HINTS):
+                return qn
+        # Priority 2: not a resolver path
+        for qn in candidates:
+            if not any(h in _rel(qn) for h in _RESOLVER_PATH_HINTS):
+                return qn
+        return None
 
-    # Priority 2: repo-relative path is not a resolver path
-    for qn in candidates:
-        if not any(h in _rel(qn) for h in _RESOLVER_PATH_HINTS):
-            return qn
+    def _search(name: str) -> list[str]:
+        try:
+            nodes = store.search_nodes(name, limit=50)
+        except Exception:
+            return []
+        return [
+            n.qualified_name
+            for n in nodes
+            if n.kind == "Function" and n.name == name and n.file_path.startswith(service_root)
+        ]
+
+    candidates = _search(func_name)
+    if candidates:
+        result = _pick_best(candidates)
+        if result:
+            return result
+        # All candidates were resolver paths — fall through to alias scan
+
+    # Fallback: scan datasource/controller files for CJS alias exports
+    # e.g. module.exports = { generateHolterReport: remakeGenerateHolterReport }
+    try:
+        all_files = store.get_all_files()
+    except Exception:
+        return None
+
+    for file_path in all_files:
+        if not file_path.startswith(service_root):
+            continue
+        rel = file_path[len(root_prefix):].lower()
+        if not any(h in rel for h in _DS_PATH_HINTS):
+            continue
+        actual_name = _find_export_alias_in_file(file_path, func_name)
+        if actual_name is None:
+            continue
+        alias_candidates = _search(actual_name)
+        result = _pick_best(alias_candidates)
+        if result:
+            logger.debug(
+                "DELEGATES_TO alias: %s → %s (via %s)",
+                func_name, actual_name, file_path,
+            )
+            return result
 
     return None
 
