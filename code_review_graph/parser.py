@@ -1762,6 +1762,29 @@ class CodeParser:
     # JS/TS: variable-assigned functions  (const foo = () => {})
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _js_get_require_target(call_node) -> Optional[str]:
+        """Extract the module path from a JS/TS require() call.
+
+        Returns the string argument or None if this is not a require() call.
+
+        Handles: call_expression > identifier("require") > arguments > string
+        """
+        first_child = call_node.children[0] if call_node.children else None
+        if (
+            not first_child
+            or first_child.type != "identifier"
+            or first_child.text != b"require"
+        ):
+            return None
+        for child in call_node.children:
+            if child.type == "arguments":
+                for arg in child.children:
+                    if arg.type == "string":
+                        raw = arg.text.decode("utf-8", errors="replace")
+                        return raw.strip("'\"")
+        return None
+
     _JS_FUNC_VALUE_TYPES = frozenset(
         {"arrow_function", "function_expression", "function"},
     )
@@ -1780,29 +1803,51 @@ class CodeParser:
         defined_names: Optional[set[str]],
         _depth: int,
     ) -> bool:
-        """Handle JS/TS variable declarations that assign functions.
+        """Handle JS/TS variable declarations that assign functions or require().
 
         Patterns handled:
           const foo = () => {}
           let bar = function() {}
           export const baz = (x: number): string => x.toString()
+          const X = require('./path')  -> IMPORTS_FROM edge
 
-        Returns True if at least one function was extracted from the
-        declaration, so the caller can skip generic recursion.
+        Returns True if at least one function was extracted or a require() was
+        found, so the caller can skip generic recursion for those declarators.
         """
         handled = False
         for declarator in child.children:
             if declarator.type != "variable_declarator":
                 continue
 
-            # Find identifier and function value
+            # Find identifier and value (function or call_expression)
             var_name = None
             func_node = None
+            req_call = None
             for sub in declarator.children:
                 if sub.type == "identifier" and var_name is None:
                     var_name = sub.text.decode("utf-8", errors="replace")
                 elif sub.type in self._JS_FUNC_VALUE_TYPES:
                     func_node = sub
+                elif sub.type == "call_expression" and req_call is None:
+                    req_target = self._js_get_require_target(sub)
+                    if req_target is not None:
+                        req_call = req_target
+
+            # Handle: const X = require('./path')
+            if var_name and req_call is not None and func_node is None:
+                resolved = self._resolve_module_to_file(req_call, file_path, language)
+                target = resolved if resolved else req_call
+                if import_map is not None:
+                    import_map[var_name] = target
+                edges.append(EdgeInfo(
+                    kind="IMPORTS_FROM",
+                    source=file_path,
+                    target=target,
+                    file_path=file_path,
+                    line=child.start_point[0] + 1,
+                ))
+                handled = True
+                continue
 
             if not var_name or not func_node:
                 continue
@@ -2745,6 +2790,15 @@ class CodeParser:
             if node_type in import_types:
                 self._collect_import_names(child, language, source, import_map)
 
+            # JS/TS: detect const/let/var X = require('./path') and const X = () => {}
+            # These are not in import_types (which only covers ESM import statements)
+            # but need to be in import_map/defined_names for reference resolution.
+            if (
+                language in ("javascript", "typescript", "tsx")
+                and node_type in ("lexical_declaration", "variable_declaration")
+            ):
+                self._collect_js_var_declarations(child, import_map, defined_names)
+
         return import_map, defined_names
 
     def _collect_js_exported_local_names(
@@ -2761,6 +2815,36 @@ class CodeParser:
                                     part.text.decode("utf-8", errors="replace"),
                                 )
                                 break
+
+    def _collect_js_var_declarations(
+        self,
+        node,
+        import_map: dict[str, str],
+        defined_names: set[str],
+    ) -> None:
+        """Pre-scan JS/TS variable declarations to populate import_map and defined_names.
+
+        Handles:
+          const X = require('./path')  → import_map[X] = './path'
+          const foo = () => {}         → defined_names.add('foo')
+          let bar = function() {}      → defined_names.add('bar')
+        """
+        for declarator in node.children:
+            if declarator.type != "variable_declarator":
+                continue
+            var_name = None
+            for sub in declarator.children:
+                if sub.type == "identifier" and var_name is None:
+                    var_name = sub.text.decode("utf-8", errors="replace")
+                elif sub.type in self._JS_FUNC_VALUE_TYPES:
+                    if var_name:
+                        defined_names.add(var_name)
+                    break
+                elif sub.type == "call_expression":
+                    req_target = self._js_get_require_target(sub)
+                    if req_target is not None and var_name:
+                        import_map[var_name] = req_target
+                    break
 
     def _collect_import_names(
         self, node, language: str, source: bytes, import_map: dict[str, str],
@@ -3539,6 +3623,16 @@ class CodeParser:
             "navigation_expression",
         )
         if first.type in member_types:
+            # For JS/TS member expressions (obj.method), return the full
+            # "obj.method" text so that _resolve_call_targets does NOT match
+            # the bare method name against locally-defined functions.
+            # e.g. `dataSources.reviewHolterBeats(...)` must NOT resolve to
+            # the local function `reviewHolterBeats` — that produces false
+            # self-loops.  Other languages keep the rightmost-identifier
+            # behaviour because their member-call AST shapes differ.
+            if language in ("javascript", "typescript", "tsx") and first.type == "member_expression":
+                return first.text.decode("utf-8", errors="replace")
+
             # Get the rightmost identifier (the method name)
             # Kotlin navigation_expression uses navigation_suffix > simple_identifier.
             for child in reversed(first.children):

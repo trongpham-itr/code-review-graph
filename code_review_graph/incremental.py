@@ -18,6 +18,7 @@ from pathlib import Path, PurePosixPath
 from typing import Optional
 
 from .graph import GraphStore
+from .graphql_extractor import extract_graphql_for_repo
 from .parser import CodeParser
 
 _MAX_PARSE_WORKERS = int(os.environ.get(
@@ -560,6 +561,9 @@ def full_build(
                 if i % 200 == 0 or i == file_count:
                     logger.info("Progress: %d/%d files parsed", i, file_count)
 
+    # Extract GraphQL-specific nodes and edges (GQLField, GQLType, Loader, etc.)
+    gql_stats = extract_graphql_for_repo(repo_root, store)
+
     store.set_metadata("last_updated", time.strftime("%Y-%m-%dT%H:%M:%S"))
     store.set_metadata("last_build_type", "full")
     branch, sha = _git_branch_info(repo_root)
@@ -574,6 +578,7 @@ def full_build(
         "total_nodes": total_nodes,
         "total_edges": total_edges,
         "errors": errors,
+        "graphql": gql_stats,
     }
 
 
@@ -682,6 +687,11 @@ def incremental_update(
                 )
                 total_nodes += len(nodes)
                 total_edges += len(edges)
+
+    # Re-run GraphQL extraction if any GraphQL-related file changed
+    _GQL_TRIGGERS = (".schema.gql", "/resolvers/", "/loaders/")
+    if any(any(t in f for t in _GQL_TRIGGERS) for f in all_files):
+        extract_graphql_for_repo(repo_root, store)
 
     store.set_metadata("last_updated", time.strftime("%Y-%m-%dT%H:%M:%S"))
     store.set_metadata("last_build_type", "incremental")

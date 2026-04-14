@@ -252,6 +252,7 @@ def _handle_init(args: argparse.Namespace) -> None:
 
 def main() -> None:
     """Main CLI entry point."""
+    print('Hello World - Editing by PDT')
     ap = argparse.ArgumentParser(
         prog="code-review-graph",
         description="Persistent incremental knowledge graph for code reviews",
@@ -431,6 +432,19 @@ def main() -> None:
     eval_cmd.add_argument("--all", action="store_true", dest="run_all", help="Run all benchmarks")
     eval_cmd.add_argument("--report", action="store_true", help="Generate report from results")
     eval_cmd.add_argument("--output-dir", default=None, help="Output directory for results")
+
+    # falkordb-export
+    falkor_cmd = sub.add_parser(
+        "falkordb-export", help="Export graph to FalkorDB"
+    )
+    falkor_cmd.add_argument("--repo", default=None, help="Repository root (auto-detected)")
+    falkor_cmd.add_argument(
+        "--graph-name", required=True, dest="graph_name",
+        help="FalkorDB graph name to create / update",
+    )
+    falkor_cmd.add_argument("--host", default="localhost", help="FalkorDB host (default: localhost)")
+    falkor_cmd.add_argument("--port", type=int, default=6379, help="FalkorDB port (default: 6379)")
+    falkor_cmd.add_argument("--password", default=None, help="Redis AUTH password (optional)")
 
     # detect-changes
     detect_cmd = sub.add_parser("detect-changes", help="Analyze change impact")
@@ -692,6 +706,25 @@ def main() -> None:
                 f"({total} total pages)"
             )
             print(f"Output: {wiki_dir}")
+
+        elif args.command == "falkordb-export":
+            from .falkordb_export import export_to_falkordb
+            result = export_to_falkordb(
+                store,
+                graph_name=args.graph_name,
+                host=args.host,
+                port=args.port,
+                password=args.password,
+            )
+            print(
+                f"FalkorDB export '{args.graph_name}': "
+                f"{result['nodes_written']} nodes, {result['edges_written']} edges"
+                f" → {args.host}:{args.port}"
+            )
+            if result["errors"]:
+                print(f"Errors ({len(result['errors'])}):")
+                for err in result["errors"][:5]:
+                    print(f"  {err}")
 
         elif args.command == "detect-changes":
             from .changes import analyze_changes

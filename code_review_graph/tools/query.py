@@ -28,6 +28,10 @@ _QUERY_PATTERNS = {
     "tests_for": "Find all tests for a given function or class",
     "inheritors_of": "Find all classes that inherit from a given class",
     "file_summary": "Get a summary of all nodes in a file",
+    # GraphQL-specific patterns
+    "resolvers_of": "Find the resolver function(s) for a GQLField",
+    "fields_of_type": "Find GQLFields that return a given GQLType",
+    "loaders_of": "Find resolver functions that use a given Loader",
 }
 
 
@@ -216,21 +220,25 @@ def query_graph(
         qn = node.qualified_name if node else target
 
         if pattern == "callers_of":
+            seen_sources: set[str] = set()
             for e in store.get_edges_by_target(qn):
-                if e.kind == "CALLS":
+                if e.kind in ("CALLS", "REFERENCES"):
                     caller = store.get_node(e.source_qualified)
-                    if caller:
+                    if caller and e.source_qualified not in seen_sources:
+                        seen_sources.add(e.source_qualified)
                         results.append(node_to_dict(caller))
                     edges_out.append(edge_to_dict(e))
-            # Fallback: CALLS edges store unqualified target names
+            # Fallback: CALLS/REFERENCES edges store unqualified target names
             # (e.g. "generateTestCode") while qn is fully qualified
             # (e.g. "file.ts::generateTestCode"). Search by plain name too.
             if not results and node:
-                for e in store.search_edges_by_target_name(node.name):
-                    caller = store.get_node(e.source_qualified)
-                    if caller:
-                        results.append(node_to_dict(caller))
-                    edges_out.append(edge_to_dict(e))
+                for kind in ("CALLS", "REFERENCES"):
+                    for e in store.search_edges_by_target_name(node.name, kind):
+                        caller = store.get_node(e.source_qualified)
+                        if caller and e.source_qualified not in seen_sources:
+                            seen_sources.add(e.source_qualified)
+                            results.append(node_to_dict(caller))
+                        edges_out.append(edge_to_dict(e))
 
         elif pattern == "callees_of":
             for e in store.get_edges_by_source(qn):
@@ -307,6 +315,54 @@ def query_graph(
             file_nodes = store.get_nodes_by_file(abs_path)
             for n in file_nodes:
                 results.append(node_to_dict(n))
+
+        elif pattern == "resolvers_of":
+            # Find Function nodes that RESOLVE the target GQLField.
+            # Target may be "Query.inboxes" or bare "inboxes".
+            for e in store.get_edges_by_target(qn):
+                if e.kind == "RESOLVES":
+                    resolver = store.get_node(e.source_qualified)
+                    if resolver:
+                        results.append(node_to_dict(resolver))
+                    edges_out.append(edge_to_dict(e))
+            # Fallback: search by field name when qn didn't match
+            if not results and node:
+                for e in store.search_edges_by_target_name(node.name, kind="RESOLVES"):
+                    resolver = store.get_node(e.source_qualified)
+                    if resolver:
+                        results.append(node_to_dict(resolver))
+                    edges_out.append(edge_to_dict(e))
+
+        elif pattern == "fields_of_type":
+            # Find GQLFields that RETURN the target GQLType.
+            for e in store.get_edges_by_target(qn):
+                if e.kind == "RETURNS":
+                    field = store.get_node(e.source_qualified)
+                    if field:
+                        results.append(node_to_dict(field))
+                    edges_out.append(edge_to_dict(e))
+            # Fallback by type name
+            if not results and node:
+                for e in store.search_edges_by_target_name(node.name, kind="RETURNS"):
+                    field = store.get_node(e.source_qualified)
+                    if field:
+                        results.append(node_to_dict(field))
+                    edges_out.append(edge_to_dict(e))
+
+        elif pattern == "loaders_of":
+            # Find Function nodes that USE_LOADER the target Loader.
+            for e in store.get_edges_by_target(qn):
+                if e.kind == "USES_LOADER":
+                    fn = store.get_node(e.source_qualified)
+                    if fn:
+                        results.append(node_to_dict(fn))
+                    edges_out.append(edge_to_dict(e))
+            if not results and node:
+                for e in store.search_edges_by_target_name(node.name, kind="USES_LOADER"):
+                    fn = store.get_node(e.source_qualified)
+                    if fn:
+                        results.append(node_to_dict(fn))
+                    edges_out.append(edge_to_dict(e))
 
         summary = (
             f"Found {len(results)} result(s) "
