@@ -535,243 +535,383 @@ def _parse_schema_gql(source: str) -> tuple[list[dict], list[dict]]:
 
 
 # ---------------------------------------------------------------------------
-# JavaScript resolver / loader parsers
+# Tree-sitter JavaScript parser (replaces regex-based JS parsers)
 # ---------------------------------------------------------------------------
 
+_JS_PARSER_INIT: bool = False
+_JS_PARSER: object = None
 
-def _find_js_block_end(source: str, start: int) -> int:
-    """Return index of the ``}`` matching the ``{`` at *start*, skipping JS strings."""
-    depth = 0
-    in_string = False
-    string_char = ""
-    i = start
-    while i < len(source):
-        ch = source[i]
-        if in_string:
-            if ch == "\\" :
-                i += 2
+
+def _get_js_parser():
+    """Lazy-load the JS tree-sitter parser (safe under CPython GIL)."""
+    global _JS_PARSER, _JS_PARSER_INIT
+    if not _JS_PARSER_INIT:
+        _JS_PARSER_INIT = True
+        try:
+            import tree_sitter_language_pack as _tslp
+            _JS_PARSER = _tslp.get_parser("javascript")
+        except Exception as exc:
+            logger.warning("tree-sitter JS parser unavailable — JS edges will be empty: %s", exc)
+    return _JS_PARSER
+
+
+# ── Low-level AST utilities ──────────────────────────────────────────────────
+
+
+def _ts_text(node) -> str:
+    """Decode a tree-sitter node's bytes to str."""
+    return node.text.decode("utf-8", errors="replace") if node.text else ""
+
+
+def _iter_type(node, types: frozenset):
+    """Yield every descendant node (including self) whose type is in *types* (DFS)."""
+    if node.type in types:
+        yield node
+    for child in node.children:
+        yield from _iter_type(child, types)
+
+
+def _resolve_req_path(req_path: str, base_dir: Path) -> Path:
+    """Resolve a CJS/ESM import specifier to an absolute Path (best effort)."""
+    resolved = (base_dir / req_path).resolve()
+    if not resolved.suffix:
+        as_js = resolved.with_suffix(".js")
+        as_index = resolved / "index.js"
+        resolved = as_js if as_js.exists() else (as_index if as_index.exists() else as_js)
+    return resolved
+
+
+def _require_string(val_node) -> Optional[str]:
+    """If *val_node* is a ``require('...')`` call expression, return the path string; else None."""
+    if val_node.type != "call_expression":
+        return None
+    fn = val_node.child_by_field_name("function")
+    if fn is None or _ts_text(fn) != "require":
+        return None
+    args = val_node.child_by_field_name("arguments")
+    if args is None:
+        return None
+    for child in args.named_children:
+        if child.type == "string":
+            return _ts_text(child).strip("'\"`")
+    return None
+
+
+def _find_module_exports_obj(root):
+    """Return the ``object`` node of ``module.exports = {…}``, or ``None``."""
+    for node in _iter_type(root, frozenset({"assignment_expression"})):
+        left = node.child_by_field_name("left")
+        right = node.child_by_field_name("right")
+        if left is None or right is None or right.type != "object":
+            continue
+        if left.type != "member_expression":
+            continue
+        obj = left.child_by_field_name("object")
+        prop = left.child_by_field_name("property")
+        if obj and _ts_text(obj) == "module" and prop and _ts_text(prop) == "exports":
+            return right
+    return None
+
+
+def _key_name(key_node) -> Optional[str]:
+    """Extract a plain-string key name from an object key AST node."""
+    if key_node.type in ("property_identifier", "identifier"):
+        return _ts_text(key_node)
+    if key_node.type == "string":
+        return _ts_text(key_node).strip("'\"`")
+    if key_node.type == "computed_property_name":
+        for child in key_node.named_children:
+            if child.type == "string":
+                return _ts_text(child).strip("'\"`")
+    return None
+
+
+def _parse_exports_obj(obj_node) -> tuple[dict[str, str], list[str]]:
+    """Parse an object AST node into ``(direct_exports, spread_var_names)``.
+
+    Returns:
+        direct_exports:  ``{field_key: function_name}``
+        spread_var_names: list of identifiers found in spread elements
+                          (e.g. ``...facilityResolvers`` → ``["facilityResolvers"]``)
+    """
+    direct: dict[str, str] = {}
+    spreads: list[str] = []
+
+    for child in obj_node.named_children:
+        if child.type == "pair":
+            key_node = child.child_by_field_name("key")
+            val_node = child.child_by_field_name("value")
+            if key_node is None or val_node is None:
                 continue
-            if ch == string_char:
-                in_string = False
-        else:
-            if ch in ('"', "'", "`"):
-                in_string = True
-                string_char = ch
-            elif ch == "{":
-                depth += 1
-            elif ch == "}":
-                depth -= 1
-                if depth == 0:
-                    return i
-        i += 1
-    return len(source) - 1
+            key = _key_name(key_node)
+            if not key:
+                continue
+            if val_node.type == "identifier":
+                direct[key] = _ts_text(val_node)
+            elif val_node.type in ("function", "arrow_function"):
+                # Inline function definition — use the key as the local identifier
+                direct[key] = key
+        elif child.type == "shorthand_property_identifier":
+            name = _ts_text(child)
+            if name:
+                direct[name] = name
+        elif child.type == "spread_element":
+            for sub in child.named_children:
+                if sub.type == "identifier":
+                    spreads.append(_ts_text(sub))
+
+    return direct, spreads
 
 
-def _find_exports_block(source: str) -> str:
-    """Return the content between ``{`` and ``}`` of ``module.exports = { … }``."""
-    idx = source.find("module.exports")
-    if idx == -1:
-        return ""
-    brace_idx = source.find("{", idx)
-    if brace_idx == -1:
-        return ""
-    end = _find_js_block_end(source, brace_idx)
-    return source[brace_idx + 1 : end]
+def _collect_simple_requires(root, base_dir: Path) -> dict[str, Path]:
+    """Collect ``var x = require('path')`` → ``{x: resolved_path}``."""
+    result: dict[str, Path] = {}
+    decl_types = frozenset({"variable_declaration", "lexical_declaration"})
+    for decl in _iter_type(root, decl_types):
+        for vd in decl.named_children:
+            if vd.type != "variable_declarator":
+                continue
+            name_n = vd.child_by_field_name("name")
+            val_n = vd.child_by_field_name("value")
+            if name_n is None or val_n is None or name_n.type != "identifier":
+                continue
+            req = _require_string(val_n)
+            if req is None:
+                continue
+            result[_ts_text(name_n)] = _resolve_req_path(req, base_dir)
+    return result
+
+
+def _collect_destructured_requires(root, base_dir: Path) -> dict[str, str]:
+    """Collect ``const { a, b } = require('path')`` and ESM ``import { a } from 'path'``.
+
+    Returns ``{local_name: resolved_abs_path_str}``.
+    """
+    result: dict[str, str] = {}
+    decl_types = frozenset({"variable_declaration", "lexical_declaration"})
+
+    # CJS: const { a, b } = require('path')
+    for decl in _iter_type(root, decl_types):
+        for vd in decl.named_children:
+            if vd.type != "variable_declarator":
+                continue
+            name_n = vd.child_by_field_name("name")
+            val_n = vd.child_by_field_name("value")
+            if name_n is None or val_n is None or name_n.type != "object_pattern":
+                continue
+            req = _require_string(val_n)
+            if req is None:
+                continue
+            resolved = str(_resolve_req_path(req, base_dir))
+            for child in name_n.named_children:
+                if child.type in (
+                    "shorthand_property_identifier_pattern",
+                    "identifier",
+                ):
+                    result[_ts_text(child)] = resolved
+                elif child.type == "pair_pattern":
+                    # { original: localAlias } = require(...)
+                    val_p = child.child_by_field_name("value")
+                    if val_p and val_p.type in ("identifier",):
+                        result[_ts_text(val_p)] = resolved
+
+    # ESM: import { a, b } from './path'
+    for imp in _iter_type(root, frozenset({"import_statement"})):
+        source_n = imp.child_by_field_name("source")
+        if source_n is None:
+            continue
+        req = _ts_text(source_n).strip("'\"`")
+        if not req:
+            continue
+        resolved = str(_resolve_req_path(req, base_dir))
+        clause = imp.child_by_field_name("import_clause")
+        if clause is None:
+            continue
+        for child in clause.named_children:
+            if child.type == "named_imports":
+                for spec in child.named_children:
+                    if spec.type == "import_specifier":
+                        alias = spec.child_by_field_name("alias")
+                        name_spec = spec.child_by_field_name("name")
+                        local_n = alias if alias else name_spec
+                        if local_n:
+                            result[_ts_text(local_n)] = resolved
+
+    return result
+
+
+# ── Enclosing-function resolution ─────────────────────────────────────────────
+
+_FN_NODE_TYPES = frozenset({
+    "function_declaration",
+    "function",
+    "arrow_function",
+    "generator_function_declaration",
+    "generator_function",
+    "method_definition",
+})
+
+
+def _enclosing_fn_name(node) -> Optional[str]:
+    """Walk up the AST from *node* to find the nearest named enclosing function."""
+    cur = node.parent
+    while cur is not None:
+        if cur.type in _FN_NODE_TYPES:
+            name_n = cur.child_by_field_name("name")
+            if name_n:
+                return _ts_text(name_n)
+            # Anonymous function / arrow assigned to a variable
+            if cur.type in ("function", "arrow_function", "generator_function"):
+                par = cur.parent
+                if par and par.type == "variable_declarator":
+                    nm = par.child_by_field_name("name")
+                    if nm and nm.type == "identifier":
+                        return _ts_text(nm)
+            # method_definition key (object literal)
+            if cur.type == "method_definition":
+                name_n = cur.child_by_field_name("name")
+                if name_n:
+                    return _ts_text(name_n)
+        cur = cur.parent
+    return None
+
+
+# ── Rewritten public API ──────────────────────────────────────────────────────
 
 
 def _parse_resolver_index(source: str, resolvers_dir: Path) -> dict[str, Path]:
-    """Parse ``resolvers/index.js`` → ``{TypeName: resolver_file_path}`` mapping."""
-    # Step 1: build variable → file mapping from require() calls
-    var_to_file: dict[str, Path] = {}
-    for m in re.finditer(
-        r"(?:const|let|var)\s+(\w+)\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
-        source,
-    ):
-        var_name = m.group(1)
-        req_path = m.group(2)
-        resolved = (resolvers_dir / req_path).resolve()
-        if not resolved.suffix:
-            # Node.js resolution: try path.js first, then path/index.js
-            as_js = resolved.with_suffix(".js")
-            as_index = resolved / "index.js"
-            resolved = as_js if as_js.exists() else (as_index if as_index.exists() else as_js)
-        var_to_file[var_name] = resolved
-
-    # Step 2: parse module.exports { TypeName: varName, ... }
-    exports_block = _find_exports_block(source)
-    if not exports_block:
+    """Parse ``resolvers/index.js`` → ``{TypeName: resolver_file_path}``."""
+    parser = _get_js_parser()
+    if parser is None:
         return {}
 
-    result: dict[str, Path] = {}
-    for m in re.finditer(r"\b([A-Z]\w*)\s*:\s*(\w+)\b", exports_block):
-        type_name = m.group(1)
-        var_name = m.group(2)
-        if var_name in var_to_file:
-            result[type_name] = var_to_file[var_name]
+    root = parser.parse(source.encode()).root_node
+    var_to_file = _collect_simple_requires(root, resolvers_dir)
 
+    obj_node = _find_module_exports_obj(root)
+    if obj_node is None:
+        return {}
+
+    direct, _ = _parse_exports_obj(obj_node)
+    result: dict[str, Path] = {}
+    for type_name, var_name in direct.items():
+        # GraphQL type names start with uppercase
+        if type_name and type_name[0].isupper() and var_name in var_to_file:
+            result[type_name] = var_to_file[var_name]
     return result
 
 
 def _parse_resolver_exports(source: str) -> dict[str, str]:
-    """Parse ``module.exports = { … }`` from a resolver file.
-
-    Returns ``{field_key: function_name}``.
-    """
-    exports_block = _find_exports_block(source)
-    if not exports_block:
+    """Parse ``module.exports = {…}`` from a resolver file → ``{field_key: func_name}``."""
+    parser = _get_js_parser()
+    if parser is None:
         return {}
 
-    result: dict[str, str] = {}
+    root = parser.parse(source.encode()).root_node
+    obj_node = _find_module_exports_obj(root)
+    if obj_node is None:
+        return {}
 
-    # Explicit key: value pairs (e.g. linkedStudies: resolveLinkedStudies)
-    for m in re.finditer(r"\b(\w+)\s*:\s*(\w+)\b", exports_block):
-        key, value = m.group(1), m.group(2)
-        if key != "__proto__":
-            result[key] = value
-
-    # Shorthand properties: identifier NOT followed by ':'
-    # Pattern 1 — multi-line: identifier alone on a line (e.g. "  inboxes,")
-    for m in re.finditer(r"^\s*([a-zA-Z_$][\w$]*)\s*,?\s*$", exports_block, re.MULTILINE):
-        name = m.group(1)
-        if name not in result:
-            result[name] = name
-    # Pattern 2 — inline: identifier after a comma, followed by ',', '}', or end-of-string
-    # (the closing '}' is consumed by _find_exports_block, so we must also match '$')
-    for m in re.finditer(r",\s*([a-zA-Z_$][\w$]*)(?=\s*(?:,|\}|$))", exports_block):
-        name = m.group(1)
-        if name not in result:
-            result[name] = name
-    # Pattern 3 — first item in an inline block: { firstItem, secondItem }
-    # Pattern 2 requires a leading comma so it misses the very first identifier.
-    for m in re.finditer(r"^\s*([a-zA-Z_$][\w$]*)(?=\s*,)", exports_block, re.MULTILINE):
-        name = m.group(1)
-        if name not in result:
-            result[name] = name
-
-    return result
+    direct, _ = _parse_exports_obj(obj_node)
+    return direct
 
 
 def _collect_spread_resolver_exports(
     source: str, file_dir: Path
 ) -> list[tuple[str, str, str]]:
-    """Follow ``...spread`` exports in a resolver aggregator file (one level deep).
+    """Follow ``...spread`` exports in an aggregator → ``[(field_key, func_name, abs_path)]``.
 
-    Handles the pattern where a resolver file only re-exports via spreads::
+    Handles the pattern::
 
         const facility = require('./facility');
         const report = require('./report');
         module.exports = { ...facility, ...report };
 
-    Returns ``[(field_key, func_name, source_file_path)]`` so callers can emit
-    edges with the correct file path (the child file, not the aggregator).
+    Returns tuples carrying the *child* file path so callers emit edges with the
+    correct source location (the file that actually defines the function).
     """
-    var_to_file: dict[str, Path] = {}
-    for m in re.finditer(
-        r"(?:const|let|var)\s+(\w+)\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
-        source,
-    ):
-        var_name, req_path = m.group(1), m.group(2)
-        resolved = (file_dir / req_path).resolve()
-        if not resolved.suffix:
-            resolved = resolved.with_suffix(".js")
-        var_to_file[var_name] = resolved
-
-    exports_block = _find_exports_block(source)
-    if not exports_block:
+    parser = _get_js_parser()
+    if parser is None:
         return []
 
+    root = parser.parse(source.encode()).root_node
+    var_to_file = _collect_simple_requires(root, file_dir)
+
+    obj_node = _find_module_exports_obj(root)
+    if obj_node is None:
+        return []
+
+    _, spread_vars = _parse_exports_obj(obj_node)
     results: list[tuple[str, str, str]] = []
     seen: set[str] = set()
-    for m in re.finditer(r"\.\.\.\s*(\w+)", exports_block):
-        spread_file = var_to_file.get(m.group(1))
-        if spread_file and spread_file.exists():
-            try:
-                spread_source = spread_file.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                continue
-            file_path = str(spread_file)
-            for field_key, func_name in _parse_resolver_exports(spread_source).items():
-                if field_key not in seen:
-                    results.append((field_key, func_name, file_path))
-                    seen.add(field_key)
+    for var_name in spread_vars:
+        spread_file = var_to_file.get(var_name)
+        if spread_file is None or not spread_file.exists():
+            continue
+        try:
+            spread_src = spread_file.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        file_path = str(spread_file)
+        for field_key, func_name in _parse_resolver_exports(spread_src).items():
+            if field_key not in seen:
+                results.append((field_key, func_name, file_path))
+                seen.add(field_key)
 
     return results
 
 
 def _build_import_map(source: str, file_dir: Path) -> dict[str, str]:
-    """Parse destructured require() imports → ``{local_name: resolved_abs_file_path}``.
+    """Parse destructured ``require``/``import`` statements → ``{local_name: abs_path_str}``.
 
-    Handles the common pattern where resolver files re-export functions imported
-    from utility/controller modules::
-
-        const { resolveTechnicianComments, getIsExcludedVeAndSveDetect } = require('../utils/controllers');
-        module.exports = { technicianComments: resolveTechnicianComments, ... };
-
-    Returns a map so callers can resolve the actual file that defines the function
-    when it is not defined locally in the resolver file.
+    Handles CJS destructured require and ESM named imports so callers can
+    resolve functions imported from utility/controller modules.
     """
-    result: dict[str, str] = {}
-    for m in re.finditer(
-        r"(?:const|let|var)\s*\{([^}]+)\}\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
-        source,
-    ):
-        req_path = m.group(2)
-        resolved = (file_dir / req_path).resolve()
-        if not resolved.suffix:
-            as_js = resolved.with_suffix(".js")
-            as_index = resolved / "index.js"
-            resolved = as_js if as_js.exists() else (as_index if as_index.exists() else as_js)
-        resolved_str = str(resolved)
-        for name_m in re.finditer(r"\b([a-zA-Z_$][\w$]*)\b", m.group(1)):
-            result[name_m.group(1)] = resolved_str
-    return result
+    parser = _get_js_parser()
+    if parser is None:
+        return {}
+
+    root = parser.parse(source.encode()).root_node
+    return _collect_destructured_requires(root, file_dir)
 
 
-def _find_via_spread(func_name: str, index_file: str, store: "GraphStore") -> str | None:
-    """Search for *func_name* in files that *index_file* spread-exports.
+def _find_via_spread(func_name: str, index_file: str, store: "GraphStore") -> Optional[str]:
+    """Search for *func_name* in files spread-exported by *index_file*.
 
-    Handles the pattern::
+    Handles the aggregator pattern::
 
         # controllers/index.js
         const holterProfileUtils = require('./holterProfile');
-        module.exports = { ...holterProfileUtils, ... };
+        module.exports = { ...holterProfileUtils };
 
-    When *func_name* is defined in ``holterProfile.js`` but imported via the
-    index aggregator, this function follows the spread one level deep and
-    returns the qualified name if found.
+    Returns the qualified name if *func_name* is found in a spread child file.
     """
     try:
         src = Path(index_file).read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
 
-    index_dir = Path(index_file).parent
-
-    # Build var → file mapping from simple require() calls in the index
-    var_to_file: dict[str, str] = {}
-    for m in re.finditer(
-        r"(?:const|let|var)\s+(\w+)\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
-        src,
-    ):
-        var_name, req_path = m.group(1), m.group(2)
-        resolved = (index_dir / req_path).resolve()
-        if not resolved.suffix:
-            as_js = resolved.with_suffix(".js")
-            as_index = resolved / "index.js"
-            resolved = as_js if as_js.exists() else (as_index if as_index.exists() else as_js)
-        var_to_file[var_name] = str(resolved)
-
-    # Check each spread source file for the function
-    exports_block = _find_exports_block(src)
-    if not exports_block:
+    parser = _get_js_parser()
+    if parser is None:
         return None
-    for m in re.finditer(r"\.\.\.\s*(\w+)", exports_block):
-        spread_file = var_to_file.get(m.group(1))
-        if spread_file:
-            candidate_qn = f"{spread_file}::{func_name}"
-            if store.get_node(candidate_qn) is not None:
-                logger.debug("_resolve_fn_qn: %s found via spread in %s", func_name, spread_file)
-                return candidate_qn
+
+    index_dir = Path(index_file).parent
+    root = parser.parse(src.encode()).root_node
+
+    var_to_file = _collect_simple_requires(root, index_dir)
+    obj_node = _find_module_exports_obj(root)
+    if obj_node is None:
+        return None
+
+    _, spread_vars = _parse_exports_obj(obj_node)
+    for var_name in spread_vars:
+        spread_file = var_to_file.get(var_name)
+        if spread_file is None:
+            continue
+        candidate_qn = f"{spread_file}::{func_name}"
+        if store.get_node(candidate_qn) is not None:
+            logger.debug("_find_via_spread: %s found in %s", func_name, spread_file)
+            return candidate_qn
     return None
 
 
@@ -808,55 +948,83 @@ def _resolve_fn_qn(
 
 
 def _find_function_ranges(source: str) -> list[tuple[str, int, int]]:
-    """Return ``(name, start, end)`` for all named JS functions in *source*."""
+    """Return ``[(name, start_byte, end_byte)]`` for all named JS functions.
+
+    Uses tree-sitter AST traversal; falls back to empty list if parser unavailable.
+    """
+    parser = _get_js_parser()
+    if parser is None:
+        return []
+
+    root = parser.parse(source.encode()).root_node
     ranges: list[tuple[str, int, int]] = []
     seen: set[str] = set()
+    fn_decl_types = frozenset({"function_declaration", "generator_function_declaration"})
+    fn_expr_types = frozenset({"function", "arrow_function", "generator_function"})
+    decl_types = frozenset({"variable_declaration", "lexical_declaration"})
 
-    patterns = [
-        # async function name(...) {
-        r"\basync\s+function\s+(\w+)\s*\([^)]*\)\s*\{",
-        # function name(...) {
-        r"\bfunction\s+(\w+)\s*\([^)]*\)\s*\{",
-        # const name = async (...) => {
-        r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>\s*\{",
-        # const name = async function(...) {
-        r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?function\s*\([^)]*\)\s*\{",
-    ]
+    for node in _iter_type(root, fn_decl_types):
+        name_n = node.child_by_field_name("name")
+        if name_n:
+            fn_name = _ts_text(name_n)
+            if fn_name and fn_name not in seen:
+                ranges.append((fn_name, node.start_byte, node.end_byte))
+                seen.add(fn_name)
 
-    for pat in patterns:
-        for m in re.finditer(pat, source):
-            fn_name = m.group(1)
-            if fn_name in seen:
+    for decl in _iter_type(root, decl_types):
+        for vd in decl.named_children:
+            if vd.type != "variable_declarator":
                 continue
-            brace_start = source.rfind("{", m.start(), m.end())
-            if brace_start == -1:
+            name_n = vd.child_by_field_name("name")
+            val_n = vd.child_by_field_name("value")
+            if name_n is None or val_n is None or name_n.type != "identifier":
                 continue
-            brace_end = _find_js_block_end(source, brace_start)
-            ranges.append((fn_name, m.start(), brace_end))
-            seen.add(fn_name)
+            if val_n.type not in fn_expr_types:
+                continue
+            fn_name = _ts_text(name_n)
+            if fn_name and fn_name not in seen:
+                ranges.append((fn_name, decl.start_byte, decl.end_byte))
+                seen.add(fn_name)
 
     return ranges
 
 
 def _find_datasource_calls(source: str) -> list[tuple[str, str]]:
-    """Find ``dataSources.methodName(...)`` calls and their enclosing resolver functions.
+    """Find ``dataSources.method()`` / ``context.dataSources.method()`` calls.
 
-    Returns ``[(resolver_func_name, datasource_method_name)]``.
-    This powers DELEGATES_TO edges: resolver Function → datasource Function.
+    Returns ``[(resolver_fn_name, datasource_method_name)]``.
+    Powers DELEGATES_TO edges: resolver Function → datasource Function.
     """
-    func_ranges = _find_function_ranges(source)
+    parser = _get_js_parser()
+    if parser is None:
+        return []
+
+    root = parser.parse(source.encode()).root_node
     results: list[tuple[str, str]] = []
     seen: set[tuple[str, str]] = set()
 
-    for m in re.finditer(r"\bdataSources\.(\w+)\s*\(", source):
-        ds_method = m.group(1)
-        call_pos = m.start()
-        enclosing = None
-        for fn_name, fn_start, fn_end in func_ranges:
-            if fn_start <= call_pos <= fn_end:
-                enclosing = fn_name
-                break
-        if enclosing and (enclosing, ds_method) not in seen:
+    for call in _iter_type(root, frozenset({"call_expression"})):
+        fn_node = call.child_by_field_name("function")
+        if fn_node is None or fn_node.type != "member_expression":
+            continue
+        obj = fn_node.child_by_field_name("object")
+        prop = fn_node.child_by_field_name("property")
+        if obj is None or prop is None:
+            continue
+
+        # Accept: dataSources.foo() or context.dataSources.foo()
+        obj_text = _ts_text(obj)
+        is_ds = obj_text == "dataSources"
+        if not is_ds and obj.type == "member_expression":
+            inner_prop = obj.child_by_field_name("property")
+            if inner_prop and _ts_text(inner_prop) == "dataSources":
+                is_ds = True
+        if not is_ds:
+            continue
+
+        ds_method = _ts_text(prop)
+        enclosing = _enclosing_fn_name(call)
+        if enclosing and ds_method and (enclosing, ds_method) not in seen:
             results.append((enclosing, ds_method))
             seen.add((enclosing, ds_method))
 
@@ -864,23 +1032,49 @@ def _find_datasource_calls(source: str) -> list[tuple[str, str]]:
 
 
 def _find_loaders_usage(source: str) -> list[tuple[str, str]]:
-    """Find ``loaders.X.load()`` / ``loadMany()`` calls and their enclosing functions.
+    """Find ``loaders.X.load()`` / ``context.loaders.X.load()`` calls.
 
     Returns ``[(function_name, loader_name)]``.
+    Powers USES_LOADER edges: resolver Function → Loader.
     """
-    func_ranges = _find_function_ranges(source)
+    parser = _get_js_parser()
+    if parser is None:
+        return []
+
+    root = parser.parse(source.encode()).root_node
     results: list[tuple[str, str]] = []
     seen: set[tuple[str, str]] = set()
 
-    for m in re.finditer(r"\bloaders\.(\w+)\.(?:load|loadMany)\s*\(", source):
-        loader_name = m.group(1)
-        call_pos = m.start()
-        enclosing = None
-        for fn_name, fn_start, fn_end in func_ranges:
-            if fn_start <= call_pos <= fn_end:
-                enclosing = fn_name
-                break
-        if enclosing and (enclosing, loader_name) not in seen:
+    for call in _iter_type(root, frozenset({"call_expression"})):
+        fn_node = call.child_by_field_name("function")
+        if fn_node is None or fn_node.type != "member_expression":
+            continue
+        method_prop = fn_node.child_by_field_name("property")
+        if method_prop is None or _ts_text(method_prop) not in ("load", "loadMany"):
+            continue
+
+        # fn_node.object = loaders.X  OR  context.loaders.X
+        loader_chain = fn_node.child_by_field_name("object")
+        if loader_chain is None or loader_chain.type != "member_expression":
+            continue
+        loader_name_n = loader_chain.child_by_field_name("property")
+        loader_obj = loader_chain.child_by_field_name("object")
+        if loader_name_n is None or loader_obj is None:
+            continue
+        loader_name = _ts_text(loader_name_n)
+
+        # loader_obj must be `loaders` or `context.loaders`
+        obj_text = _ts_text(loader_obj)
+        is_loaders = obj_text == "loaders"
+        if not is_loaders and loader_obj.type == "member_expression":
+            lp = loader_obj.child_by_field_name("property")
+            if lp and _ts_text(lp) == "loaders":
+                is_loaders = True
+        if not is_loaders:
+            continue
+
+        enclosing = _enclosing_fn_name(call)
+        if enclosing and loader_name and (enclosing, loader_name) not in seen:
             results.append((enclosing, loader_name))
             seen.add((enclosing, loader_name))
 
