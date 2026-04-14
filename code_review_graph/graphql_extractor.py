@@ -247,11 +247,29 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
             else:
                 edge_items = _collect_spread_resolver_exports(res_source, resolver_file.parent)
 
+            # Build import map for this resolver file so we can resolve functions
+            # that are imported from other files (e.g. utils/controllers).
+            # For spread child files, build their import maps lazily on first use.
+            res_import_map = _build_import_map(res_source, resolver_file.parent)
+            spread_import_maps: dict[str, dict[str, str]] = {}
+
+            def _get_import_map(fp: str) -> dict[str, str]:
+                if fp == resolver_path:
+                    return res_import_map
+                if fp not in spread_import_maps:
+                    try:
+                        sp_src = Path(fp).read_text(encoding="utf-8", errors="replace")
+                        spread_import_maps[fp] = _build_import_map(sp_src, Path(fp).parent)
+                    except OSError:
+                        spread_import_maps[fp] = {}
+                return spread_import_maps[fp]
+
             for field_key, func_name, file_path in edge_items:
+                fn_qn = _resolve_fn_qn(func_name, file_path, store, _get_import_map(file_path))
+
                 if field_key == "__resolveReference":
                     # RESOLVES_REF: Function → GQLType (entity type)
                     type_qn = gql_type_qn.get(type_name, f"{schema_path}::{type_name}")
-                    fn_qn = f"{file_path}::{func_name}"
                     store.upsert_edge(
                         EdgeInfo(kind="RESOLVES_REF", source=fn_qn, target=type_qn, file_path=file_path)
                     )
@@ -263,7 +281,6 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
                     # create a synthetic placeholder GQLField (is_external=True)
                     # and emit RESOLVES_EXTERNAL so the chain stays traversable.
                     field_qn = f"{schema_path}::{type_name}.{field_key}"
-                    fn_qn = f"{file_path}::{func_name}"
                     if store.get_node(field_qn) is None:
                         store.upsert_node(NodeInfo(
                             kind="GQLField",
@@ -679,6 +696,115 @@ def _collect_spread_resolver_exports(
                     seen.add(field_key)
 
     return results
+
+
+def _build_import_map(source: str, file_dir: Path) -> dict[str, str]:
+    """Parse destructured require() imports → ``{local_name: resolved_abs_file_path}``.
+
+    Handles the common pattern where resolver files re-export functions imported
+    from utility/controller modules::
+
+        const { resolveTechnicianComments, getIsExcludedVeAndSveDetect } = require('../utils/controllers');
+        module.exports = { technicianComments: resolveTechnicianComments, ... };
+
+    Returns a map so callers can resolve the actual file that defines the function
+    when it is not defined locally in the resolver file.
+    """
+    result: dict[str, str] = {}
+    for m in re.finditer(
+        r"(?:const|let|var)\s*\{([^}]+)\}\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+        source,
+    ):
+        req_path = m.group(2)
+        resolved = (file_dir / req_path).resolve()
+        if not resolved.suffix:
+            as_js = resolved.with_suffix(".js")
+            as_index = resolved / "index.js"
+            resolved = as_js if as_js.exists() else (as_index if as_index.exists() else as_js)
+        resolved_str = str(resolved)
+        for name_m in re.finditer(r"\b([a-zA-Z_$][\w$]*)\b", m.group(1)):
+            result[name_m.group(1)] = resolved_str
+    return result
+
+
+def _find_via_spread(func_name: str, index_file: str, store: "GraphStore") -> str | None:
+    """Search for *func_name* in files that *index_file* spread-exports.
+
+    Handles the pattern::
+
+        # controllers/index.js
+        const holterProfileUtils = require('./holterProfile');
+        module.exports = { ...holterProfileUtils, ... };
+
+    When *func_name* is defined in ``holterProfile.js`` but imported via the
+    index aggregator, this function follows the spread one level deep and
+    returns the qualified name if found.
+    """
+    try:
+        src = Path(index_file).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+
+    index_dir = Path(index_file).parent
+
+    # Build var → file mapping from simple require() calls in the index
+    var_to_file: dict[str, str] = {}
+    for m in re.finditer(
+        r"(?:const|let|var)\s+(\w+)\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+        src,
+    ):
+        var_name, req_path = m.group(1), m.group(2)
+        resolved = (index_dir / req_path).resolve()
+        if not resolved.suffix:
+            as_js = resolved.with_suffix(".js")
+            as_index = resolved / "index.js"
+            resolved = as_js if as_js.exists() else (as_index if as_index.exists() else as_js)
+        var_to_file[var_name] = str(resolved)
+
+    # Check each spread source file for the function
+    exports_block = _find_exports_block(src)
+    if not exports_block:
+        return None
+    for m in re.finditer(r"\.\.\.\s*(\w+)", exports_block):
+        spread_file = var_to_file.get(m.group(1))
+        if spread_file:
+            candidate_qn = f"{spread_file}::{func_name}"
+            if store.get_node(candidate_qn) is not None:
+                logger.debug("_resolve_fn_qn: %s found via spread in %s", func_name, spread_file)
+                return candidate_qn
+    return None
+
+
+def _resolve_fn_qn(
+    func_name: str,
+    file_path: str,
+    store: "GraphStore",
+    import_map: dict[str, str],
+) -> str:
+    """Return the best-effort qualified name for *func_name*.
+
+    Priority:
+    1. Local definition: ``file_path::func_name`` exists in store → use it.
+    2. Direct import: *import_map* points to a file that defines *func_name*.
+    3. Spread-via-index: imported file is an index aggregator that spread-exports
+       *func_name* from a sub-file (e.g. ``controllers/index.js`` → ``controllers/holterProfile.js``).
+    4. Fall back to local qn (may be dangling if the function is truly missing).
+    """
+    local_qn = f"{file_path}::{func_name}"
+    if store.get_node(local_qn) is not None:
+        return local_qn
+    if func_name in import_map:
+        imported_file = import_map[func_name]
+        # Priority 2: direct match in the imported file
+        candidate_qn = f"{imported_file}::{func_name}"
+        if store.get_node(candidate_qn) is not None:
+            logger.debug("_resolve_fn_qn: %s resolved via import from %s", func_name, imported_file)
+            return candidate_qn
+        # Priority 3: imported file is an index that spread-exports func_name
+        deep_qn = _find_via_spread(func_name, imported_file, store)
+        if deep_qn:
+            return deep_qn
+    return local_qn  # best effort — edge may be dangling
 
 
 def _find_function_ranges(source: str) -> list[tuple[str, int, int]]:

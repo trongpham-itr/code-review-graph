@@ -29,9 +29,10 @@ _QUERY_PATTERNS = {
     "inheritors_of": "Find all classes that inherit from a given class",
     "file_summary": "Get a summary of all nodes in a file",
     # GraphQL-specific patterns
-    "resolvers_of": "Find the resolver function(s) for a GQLField",
+    "resolvers_of": "Find the resolver function(s) for a GQLField (includes federation RESOLVES_EXTERNAL)",
     "fields_of_type": "Find GQLFields that return a given GQLType",
     "loaders_of": "Find resolver functions that use a given Loader",
+    "delegates_to": "Find the datasource/controller function a resolver delegates to (DELEGATES_TO)",
 }
 
 
@@ -318,20 +319,29 @@ def query_graph(
 
         elif pattern == "resolvers_of":
             # Find Function nodes that RESOLVE the target GQLField.
+            # Includes RESOLVES_EXTERNAL for federation fields (synthetic GQLField nodes).
             # Target may be "Query.inboxes" or bare "inboxes".
+            seen_resolvers: set[str] = set()
             for e in store.get_edges_by_target(qn):
-                if e.kind == "RESOLVES":
+                if e.kind in ("RESOLVES", "RESOLVES_EXTERNAL"):
                     resolver = store.get_node(e.source_qualified)
-                    if resolver:
-                        results.append(node_to_dict(resolver))
+                    if resolver and e.source_qualified not in seen_resolvers:
+                        seen_resolvers.add(e.source_qualified)
+                        r = node_to_dict(resolver)
+                        r["is_external_field"] = e.kind == "RESOLVES_EXTERNAL"
+                        results.append(r)
                     edges_out.append(edge_to_dict(e))
             # Fallback: search by field name when qn didn't match
             if not results and node:
-                for e in store.search_edges_by_target_name(node.name, kind="RESOLVES"):
-                    resolver = store.get_node(e.source_qualified)
-                    if resolver:
-                        results.append(node_to_dict(resolver))
-                    edges_out.append(edge_to_dict(e))
+                for kind in ("RESOLVES", "RESOLVES_EXTERNAL"):
+                    for e in store.search_edges_by_target_name(node.name, kind=kind):
+                        resolver = store.get_node(e.source_qualified)
+                        if resolver and e.source_qualified not in seen_resolvers:
+                            seen_resolvers.add(e.source_qualified)
+                            r = node_to_dict(resolver)
+                            r["is_external_field"] = kind == "RESOLVES_EXTERNAL"
+                            results.append(r)
+                        edges_out.append(edge_to_dict(e))
 
         elif pattern == "fields_of_type":
             # Find GQLFields that RETURN the target GQLType.
@@ -362,6 +372,23 @@ def query_graph(
                     fn = store.get_node(e.source_qualified)
                     if fn:
                         results.append(node_to_dict(fn))
+                    edges_out.append(edge_to_dict(e))
+
+        elif pattern == "delegates_to":
+            # Find the datasource/controller Function a resolver delegates to.
+            # Source: resolver Function node (target of this query).
+            for e in store.get_edges_by_source(qn):
+                if e.kind == "DELEGATES_TO":
+                    ds = store.get_node(e.target_qualified)
+                    if ds:
+                        results.append(node_to_dict(ds))
+                    edges_out.append(edge_to_dict(e))
+            # Fallback: search by resolver name
+            if not results and node:
+                for e in store.search_edges_by_target_name(node.name, kind="DELEGATES_TO"):
+                    ds = store.get_node(e.target_qualified)
+                    if ds:
+                        results.append(node_to_dict(ds))
                     edges_out.append(edge_to_dict(e))
 
         summary = (

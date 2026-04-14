@@ -217,6 +217,10 @@ def query_graph_tool(
     - tests_for: Find tests for the target
     - inheritors_of: Find classes inheriting from the target
     - file_summary: Get all nodes in a file
+    - resolvers_of: Find resolver function(s) for a GQLField (incl. federation RESOLVES_EXTERNAL)
+    - fields_of_type: Find GQLFields that return a given GQLType
+    - loaders_of: Find resolver functions that use a given Loader
+    - delegates_to: Find the datasource/controller a resolver delegates to (DELEGATES_TO)
 
     Args:
         pattern: Query pattern name (see above).
