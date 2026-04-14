@@ -2825,25 +2825,47 @@ class CodeParser:
         """Pre-scan JS/TS variable declarations to populate import_map and defined_names.
 
         Handles:
-          const X = require('./path')  → import_map[X] = './path'
-          const foo = () => {}         → defined_names.add('foo')
-          let bar = function() {}      → defined_names.add('bar')
+          const X = require('./path')         → import_map[X] = './path'
+          const { A, B } = require('./path')  → import_map[A] = import_map[B] = './path'
+          const foo = () => {}                → defined_names.add('foo')
+          let bar = function() {}             → defined_names.add('bar')
         """
         for declarator in node.children:
             if declarator.type != "variable_declarator":
                 continue
             var_name = None
+            destructured_names: list[str] = []
             for sub in declarator.children:
                 if sub.type == "identifier" and var_name is None:
                     var_name = sub.text.decode("utf-8", errors="replace")
+                elif sub.type == "object_pattern":
+                    # const { A, B } = require('./path')
+                    for prop in sub.children:
+                        if prop.type in (
+                            "shorthand_property_identifier_pattern",
+                            "identifier",
+                        ):
+                            destructured_names.append(
+                                prop.text.decode("utf-8", errors="replace")
+                            )
+                        elif prop.type == "pair_pattern":
+                            # { original: localAlias } = require(...)
+                            val = prop.child_by_field_name("value")
+                            if val and val.type in ("identifier", "pattern_identifier"):
+                                destructured_names.append(
+                                    val.text.decode("utf-8", errors="replace")
+                                )
                 elif sub.type in self._JS_FUNC_VALUE_TYPES:
                     if var_name:
                         defined_names.add(var_name)
                     break
                 elif sub.type == "call_expression":
                     req_target = self._js_get_require_target(sub)
-                    if req_target is not None and var_name:
-                        import_map[var_name] = req_target
+                    if req_target is not None:
+                        if var_name:
+                            import_map[var_name] = req_target
+                        for name in destructured_names:
+                            import_map[name] = req_target
                     break
 
     def _collect_import_names(
@@ -3188,7 +3210,92 @@ class CodeParser:
                         self._export_symbol_cache[cache_key] = result
                         return result
 
+        # CJS barrel fallback: module.exports = { ...varName, key: fn }
+        # Handles index.js patterns that re-export via spread or explicit keys.
+        cjs_result = self._resolve_cjs_barrel_export(
+            tree.root_node, symbol_name, module_file, language, import_map, seen,
+        )
+        if cjs_result:
+            self._export_symbol_cache[cache_key] = cjs_result
+            return cjs_result
+
         self._export_symbol_cache[cache_key] = None
+        return None
+
+    def _resolve_cjs_barrel_export(
+        self,
+        root,
+        symbol_name: str,
+        module_file: str,
+        language: str,
+        import_map: dict[str, str],
+        seen: set[tuple[str, str]],
+    ) -> Optional[str]:
+        """Resolve *symbol_name* through a CJS ``module.exports = {…}`` barrel.
+
+        Handles:
+          module.exports = { key: fn }          → qualify fn in module_file
+          module.exports = { key }               → shorthand, qualify in module_file
+          module.exports = { ...varName }        → follow varName's require() source
+        """
+        for stmt in root.children:
+            if stmt.type != "expression_statement":
+                continue
+            assign = None
+            for child in stmt.children:
+                if child.type == "assignment_expression":
+                    assign = child
+                    break
+            if assign is None:
+                continue
+            left = assign.child_by_field_name("left")
+            right = assign.child_by_field_name("right")
+            if left is None or right is None or right.type != "object":
+                continue
+            if left.type != "member_expression":
+                continue
+            obj = left.child_by_field_name("object")
+            prop = left.child_by_field_name("property")
+            if obj is None or prop is None:
+                continue
+            if obj.text != b"module" or prop.text not in (b"exports",):
+                continue
+
+            # Found module.exports = {...} — scan entries
+            for entry in right.named_children:
+                if entry.type == "pair":
+                    key_node = entry.child_by_field_name("key")
+                    val_node = entry.child_by_field_name("value")
+                    if key_node is None or val_node is None:
+                        continue
+                    key = key_node.text.decode("utf-8", errors="replace").strip("'\"`")
+                    if key == symbol_name and val_node.type == "identifier":
+                        return self._qualify(
+                            val_node.text.decode("utf-8", errors="replace"),
+                            module_file, None,
+                        )
+                elif entry.type == "shorthand_property_identifier":
+                    name = entry.text.decode("utf-8", errors="replace")
+                    if name == symbol_name:
+                        return self._qualify(symbol_name, module_file, None)
+                elif entry.type == "spread_element":
+                    for sub in entry.named_children:
+                        if sub.type != "identifier":
+                            continue
+                        var = sub.text.decode("utf-8", errors="replace")
+                        src_module = import_map.get(var)
+                        if src_module is None:
+                            continue
+                        resolved = self._resolve_module_to_file(
+                            src_module, module_file, language,
+                        )
+                        if not resolved:
+                            continue
+                        result = self._resolve_exported_symbol(
+                            resolved, symbol_name, seen,
+                        )
+                        if result:
+                            return result
         return None
 
     def _qualify(self, name: str, file_path: str, enclosing_class: Optional[str]) -> str:
