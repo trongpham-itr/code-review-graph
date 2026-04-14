@@ -314,18 +314,37 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
                     stats["edges"] += 1
 
             # DELEGATES_TO: resolver Function → datasource Function
-            # Detect dataSources.methodName(...) calls and link to the
-            # datasource/controller Function node with the same name.
-            # _find_function_qualified returns the first match; here we need
-            # to skip resolver files and prefer datasource/controller paths.
-            for fn_name, ds_method in _find_datasource_calls(res_source):
-                ds_qn = _find_datasource_function_qualified(store, ds_method, str(service_root))
-                if ds_qn:
-                    fn_qn = f"{resolver_path}::{fn_name}"
-                    store.upsert_edge(
-                        EdgeInfo(kind="DELEGATES_TO", source=fn_qn, target=ds_qn, file_path=resolver_path)
+            # Scan the resolver file itself, then any spread child files
+            # (e.g. mutation/event.js) that weren't scanned directly.
+            _delegate_sources: list[tuple[str, str]] = [
+                (resolver_path, res_source)
+            ]
+            child_paths = {fp for _, _, fp in edge_items if fp != resolver_path}
+            for child_path in child_paths:
+                try:
+                    child_src = Path(child_path).read_text(
+                        encoding="utf-8", errors="replace"
                     )
-                    stats["edges"] += 1
+                    _delegate_sources.append((child_path, child_src))
+                except OSError:
+                    pass
+
+            for _dp, _ds in _delegate_sources:
+                for fn_name, ds_method in _find_datasource_calls(_ds):
+                    ds_qn = _find_datasource_function_qualified(
+                        store, ds_method, str(service_root)
+                    )
+                    if ds_qn:
+                        fn_qn = f"{_dp}::{fn_name}"
+                        store.upsert_edge(
+                            EdgeInfo(
+                                kind="DELEGATES_TO",
+                                source=fn_qn,
+                                target=ds_qn,
+                                file_path=_dp,
+                            )
+                        )
+                        stats["edges"] += 1
 
     # ── Step 4: parse utils/loaders/index.js ───────────────────────────────
     loaders_index = _find_file(
