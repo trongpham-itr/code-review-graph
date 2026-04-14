@@ -3623,6 +3623,16 @@ class CodeParser:
             "navigation_expression",
         )
         if first.type in member_types:
+            # For JS/TS member expressions (obj.method), return the full
+            # "obj.method" text so that _resolve_call_targets does NOT match
+            # the bare method name against locally-defined functions.
+            # e.g. `dataSources.reviewHolterBeats(...)` must NOT resolve to
+            # the local function `reviewHolterBeats` — that produces false
+            # self-loops.  Other languages keep the rightmost-identifier
+            # behaviour because their member-call AST shapes differ.
+            if language in ("javascript", "typescript", "tsx") and first.type == "member_expression":
+                return first.text.decode("utf-8", errors="replace")
+
             # Get the rightmost identifier (the method name)
             # Kotlin navigation_expression uses navigation_suffix > simple_identifier.
             for child in reversed(first.children):

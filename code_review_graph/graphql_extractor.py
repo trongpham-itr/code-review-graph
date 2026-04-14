@@ -253,7 +253,15 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
                     stats["edges"] += 1
                 else:
                     # RESOLVES: Function → GQLField
+                    # Only emit if the GQLField node exists in the schema —
+                    # field resolvers for federation-linked fields (e.g.
+                    # resolveStudy / resolveUser on EcgBookmark) reference
+                    # fields not declared in this service's .schema.gql,
+                    # producing dangling edges if not guarded.
                     field_qn = f"{schema_path}::{type_name}.{field_key}"
+                    if store.get_node(field_qn) is None:
+                        logger.debug("RESOLVES skipped: target GQLField %s not in schema", field_qn)
+                        continue
                     fn_qn = f"{file_path}::{func_name}"
                     store.upsert_edge(
                         EdgeInfo(kind="RESOLVES", source=fn_qn, target=field_qn, file_path=file_path)
@@ -268,6 +276,20 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
                     loader_qn = f"{loaders_index_path}::loaders.{loader_name}"
                     store.upsert_edge(
                         EdgeInfo(kind="USES_LOADER", source=fn_qn, target=loader_qn, file_path=resolver_path)
+                    )
+                    stats["edges"] += 1
+
+            # DELEGATES_TO: resolver Function → datasource Function
+            # Detect dataSources.methodName(...) calls and link to the
+            # datasource/controller Function node with the same name.
+            # _find_function_qualified returns the first match; here we need
+            # to skip resolver files and prefer datasource/controller paths.
+            for fn_name, ds_method in _find_datasource_calls(res_source):
+                ds_qn = _find_datasource_function_qualified(store, ds_method, str(service_root))
+                if ds_qn:
+                    fn_qn = f"{resolver_path}::{fn_name}"
+                    store.upsert_edge(
+                        EdgeInfo(kind="DELEGATES_TO", source=fn_qn, target=ds_qn, file_path=resolver_path)
                     )
                     stats["edges"] += 1
 
@@ -673,6 +695,31 @@ def _find_function_ranges(source: str) -> list[tuple[str, int, int]]:
     return ranges
 
 
+def _find_datasource_calls(source: str) -> list[tuple[str, str]]:
+    """Find ``dataSources.methodName(...)`` calls and their enclosing resolver functions.
+
+    Returns ``[(resolver_func_name, datasource_method_name)]``.
+    This powers DELEGATES_TO edges: resolver Function → datasource Function.
+    """
+    func_ranges = _find_function_ranges(source)
+    results: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+
+    for m in re.finditer(r"\bdataSources\.(\w+)\s*\(", source):
+        ds_method = m.group(1)
+        call_pos = m.start()
+        enclosing = None
+        for fn_name, fn_start, fn_end in func_ranges:
+            if fn_start <= call_pos <= fn_end:
+                enclosing = fn_name
+                break
+        if enclosing and (enclosing, ds_method) not in seen:
+            results.append((enclosing, ds_method))
+            seen.add((enclosing, ds_method))
+
+    return results
+
+
 def _find_loaders_usage(source: str) -> list[tuple[str, str]]:
     """Find ``loaders.X.load()`` / ``loadMany()`` calls and their enclosing functions.
 
@@ -751,6 +798,54 @@ def _find_loaders_index_path(service_root: Path) -> Optional[str]:
     ]
     f = _find_file(service_root, candidates)
     return str(f) if f else None
+
+
+_DS_PATH_HINTS = ("datasource", "controller", "command", "repository")
+_RESOLVER_PATH_HINTS = ("/resolver", "/resolvers")
+
+
+def _find_datasource_function_qualified(store: GraphStore, func_name: str, service_root: str) -> Optional[str]:
+    """Find the datasource/controller Function node for *func_name*.
+
+    Searches all Function nodes with that name inside *service_root*, then
+    picks the best match using path priority:
+      1. Prefer nodes whose path contains a datasource/controller hint.
+      2. Fall back to any non-resolver Function node.
+    Returns None if no suitable match exists.
+    """
+    try:
+        nodes = store.search_nodes(func_name, limit=50)
+    except Exception:
+        return None
+
+    candidates: list[str] = []
+    for node in nodes:
+        if node.kind != "Function" or node.name != func_name:
+            continue
+        if not node.file_path.startswith(service_root):
+            continue
+        candidates.append(node.qualified_name)
+
+    if not candidates:
+        return None
+
+    # Strip service_root prefix so path hints match only the repo-relative
+    # portion (avoids false matches on parent dirs like "microservices").
+    root_prefix = service_root.rstrip("/") + "/"
+    def _rel(qn: str) -> str:
+        return qn[len(root_prefix):].lower() if qn.startswith(root_prefix) else qn.lower()
+
+    # Priority 1: repo-relative path contains datasource/controller hint
+    for qn in candidates:
+        if any(h in _rel(qn) for h in _DS_PATH_HINTS):
+            return qn
+
+    # Priority 2: repo-relative path is not a resolver path
+    for qn in candidates:
+        if not any(h in _rel(qn) for h in _RESOLVER_PATH_HINTS):
+            return qn
+
+    return None
 
 
 def _find_function_qualified(store: GraphStore, func_name: str, service_root: str) -> Optional[str]:

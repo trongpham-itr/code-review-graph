@@ -35,6 +35,7 @@ dependencies = [
     "networkx>=3.2,<4",
     "watchdog>=4.0.0,<6",
     "graphql-core>=3.2.8",
+    "falkordb>=1.6.0",
 ]
 
 [project.urls]

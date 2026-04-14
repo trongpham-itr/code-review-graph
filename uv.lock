@@ -320,6 +320,7 @@ name = "code-review-graph"
 version = "2.3.1"
 source = { editable = "." }
 dependencies = [
+    { name = "falkordb" },
     { name = "fastmcp" },
     { name = "graphql-core" },
     { name = "mcp" },
@@ -372,6 +373,7 @@ requires-dist = [
     { name = "code-review-graph", extras = ["embeddings"], marker = "extra == 'all'" },
     { name = "code-review-graph", extras = ["eval"], marker = "extra == 'all'" },
     { name = "code-review-graph", extras = ["wiki"], marker = "extra == 'all'" },
+    { name = "falkordb", specifier = ">=1.6.0" },
     { name = "fastmcp", specifier = ">=2.14.0,<3" },
     { name = "google-generativeai", marker = "extra == 'google-embeddings'", specifier = ">=0.8.0,<1" },
     { name = "graphql-core", specifier = ">=3.2.8" },
@@ -876,6 +878,19 @@ wheels = [
 [package.optional-dependencies]
 lua = [
     { name = "lupa" },
+]
+
+[[package]]
+name = "falkordb"
+version = "1.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "python-dateutil" },
+    { name = "redis" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/72/52/5495fcba8e21c269a605092a7c4a8b33ceecae283dbfe76fc53f7f5b50ab/falkordb-1.6.0.tar.gz", hash = "sha256:5c307d973f3fc3987a18478ebd5882f7e842d4225463a8ef5e026970ebfba8c6", size = 98157, upload-time = "2026-02-21T06:36:19.107Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/eb/8b/59ec60885abd3b6b2b3a1e5917627c3cae656b4cff7f847c5217ec3dc952/falkordb-1.6.0-py3-none-any.whl", hash = "sha256:0f190e9d6104595fd51ece4f1e7b5d49d62cfee346d94151d7986a138fd90d89", size = 37378, upload-time = "2026-02-21T06:36:17.769Z" },
 ]
 
 [[package]]
