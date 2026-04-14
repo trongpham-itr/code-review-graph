@@ -1,14 +1,19 @@
 """GraphQL graph extension.
 
-Extracts GQLField, GQLType, and Loader nodes, plus RESOLVES, FIELD_OF,
-RETURNS, ACCEPTS, USES_LOADER, BACKED_BY, and RESOLVES_REF edges from
+Extracts GQLField, GQLType, and Loader nodes, plus RESOLVES, RESOLVES_EXTERNAL,
+FIELD_OF, RETURNS, ACCEPTS, USES_LOADER, BACKED_BY, and RESOLVES_REF edges from
 GraphQL services found in the repository.
 
 Data sources (per service):
   .schema.gql              → GQLField, GQLType nodes; FIELD_OF, RETURNS, ACCEPTS edges
   resolvers/index.js       → type→resolver-file mapping (lookup only)
-  resolvers/*.js           → RESOLVES, USES_LOADER, RESOLVES_REF edges
+  resolvers/*.js           → RESOLVES, RESOLVES_EXTERNAL, USES_LOADER, RESOLVES_REF edges
   utils/loaders/index.js   → Loader nodes; BACKED_BY edges
+
+RESOLVES vs RESOLVES_EXTERNAL:
+  RESOLVES          — resolver Function → GQLField defined in this service's schema
+  RESOLVES_EXTERNAL — resolver Function → GQLField from a federated (external) service;
+                      the target GQLField node is a synthetic placeholder (is_external=True)
 """
 
 from __future__ import annotations
@@ -252,20 +257,32 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
                     )
                     stats["edges"] += 1
                 else:
-                    # RESOLVES: Function → GQLField
-                    # Only emit if the GQLField node exists in the schema —
-                    # field resolvers for federation-linked fields (e.g.
-                    # resolveStudy / resolveUser on EcgBookmark) reference
-                    # fields not declared in this service's .schema.gql,
-                    # producing dangling edges if not guarded.
+                    # RESOLVES / RESOLVES_EXTERNAL: Function → GQLField
+                    # If the field exists in local schema → RESOLVES.
+                    # If not (federation-linked field from another service) →
+                    # create a synthetic placeholder GQLField (is_external=True)
+                    # and emit RESOLVES_EXTERNAL so the chain stays traversable.
                     field_qn = f"{schema_path}::{type_name}.{field_key}"
-                    if store.get_node(field_qn) is None:
-                        logger.debug("RESOLVES skipped: target GQLField %s not in schema", field_qn)
-                        continue
                     fn_qn = f"{file_path}::{func_name}"
-                    store.upsert_edge(
-                        EdgeInfo(kind="RESOLVES", source=fn_qn, target=field_qn, file_path=file_path)
-                    )
+                    if store.get_node(field_qn) is None:
+                        store.upsert_node(NodeInfo(
+                            kind="GQLField",
+                            name=field_key,
+                            file_path=schema_path,
+                            line_start=0,
+                            line_end=0,
+                            language="graphql",
+                            parent_name=type_name,
+                            extra={"is_external": True, "operation": "type_field"},
+                        ))
+                        store.upsert_edge(
+                            EdgeInfo(kind="RESOLVES_EXTERNAL", source=fn_qn, target=field_qn, file_path=file_path)
+                        )
+                        logger.debug("RESOLVES_EXTERNAL: %s → %s (federation field)", fn_qn, field_qn)
+                    else:
+                        store.upsert_edge(
+                            EdgeInfo(kind="RESOLVES", source=fn_qn, target=field_qn, file_path=file_path)
+                        )
                     stats["edges"] += 1
 
             # USES_LOADER: Function → Loader (detect loaders.X.load() calls)

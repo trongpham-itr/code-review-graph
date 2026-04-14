@@ -220,41 +220,43 @@ def get_gql_field(
                 accepts.append(type_node.name if type_node else e.target_qualified.split("::")[-1])
         result["accepts_types"] = accepts
 
-        # ── RESOLVES: resolver function ────────────────────────────────────
+        # ── RESOLVES / RESOLVES_EXTERNAL: resolver function ───────────────
         resolvers: list[dict] = []
         for e in store.get_edges_by_target(field_qn):
-            if e.kind == "RESOLVES":
-                fn_node = store.get_node(e.source_qualified)
-                if fn_node:
-                    resolver_info: dict[str, Any] = {
-                        "function": fn_node.name,
-                        "file": fn_node.file_path,
-                        "line": fn_node.line_start,
-                        "qualified_name": fn_node.qualified_name,
-                    }
+            if e.kind not in ("RESOLVES", "RESOLVES_EXTERNAL"):
+                continue
+            fn_node = store.get_node(e.source_qualified)
+            if fn_node:
+                resolver_info: dict[str, Any] = {
+                    "function": fn_node.name,
+                    "file": fn_node.file_path,
+                    "line": fn_node.line_start,
+                    "qualified_name": fn_node.qualified_name,
+                    "is_external_field": e.kind == "RESOLVES_EXTERNAL",
+                }
 
-                    # ── USES_LOADER: loaders used by resolver ──────────────
-                    loaders_used: list[dict] = []
-                    for le in store.get_edges_by_source(fn_node.qualified_name):
-                        if le.kind == "USES_LOADER":
-                            loader_node = store.get_node(le.target_qualified)
-                            loader_info: dict[str, Any] = {
-                                "loader": loader_node.name if loader_node else le.target_qualified.split("::")[-1],
-                            }
-                            if loader_node:
-                                batch_fn = (loader_node.extra or {}).get("batch_function", "")
-                                loader_info["batch_function"] = batch_fn
-                                # BACKED_BY: batch function location
-                                for be in store.get_edges_by_source(loader_node.qualified_name):
-                                    if be.kind == "BACKED_BY":
-                                        batch_node = store.get_node(be.target_qualified)
-                                        if batch_node:
-                                            loader_info["batch_file"] = batch_node.file_path
-                                            loader_info["batch_line"] = batch_node.line_start
-                            loaders_used.append(loader_info)
+                # ── USES_LOADER: loaders used by resolver ──────────────
+                loaders_used: list[dict] = []
+                for le in store.get_edges_by_source(fn_node.qualified_name):
+                    if le.kind == "USES_LOADER":
+                        loader_node = store.get_node(le.target_qualified)
+                        loader_info: dict[str, Any] = {
+                            "loader": loader_node.name if loader_node else le.target_qualified.split("::")[-1],
+                        }
+                        if loader_node:
+                            batch_fn = (loader_node.extra or {}).get("batch_function", "")
+                            loader_info["batch_function"] = batch_fn
+                            # BACKED_BY: batch function location
+                            for be in store.get_edges_by_source(loader_node.qualified_name):
+                                if be.kind == "BACKED_BY":
+                                    batch_node = store.get_node(be.target_qualified)
+                                    if batch_node:
+                                        loader_info["batch_file"] = batch_node.file_path
+                                        loader_info["batch_line"] = batch_node.line_start
+                        loaders_used.append(loader_info)
 
-                    resolver_info["loaders"] = loaders_used
-                    resolvers.append(resolver_info)
+                resolver_info["loaders"] = loaders_used
+                resolvers.append(resolver_info)
 
         result["resolvers"] = resolvers
 
