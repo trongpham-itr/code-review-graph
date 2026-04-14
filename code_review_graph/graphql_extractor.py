@@ -989,8 +989,48 @@ def _find_function_ranges(source: str) -> list[tuple[str, int, int]]:
     return ranges
 
 
+def _collect_datasource_aliases(root) -> set[str]:
+    """Collect variable names destructured from ``dataSources``.
+
+    Handles:
+      const { mongodb } = dataSources
+      const { mongodb } = context.dataSources
+    Returns a set of alias names (e.g. ``{"mongodb"}``).
+    """
+    aliases: set[str] = set()
+    decl_types = frozenset({"variable_declaration", "lexical_declaration"})
+    for decl in _iter_type(root, decl_types):
+        for vd in decl.named_children:
+            if vd.type != "variable_declarator":
+                continue
+            name_n = vd.child_by_field_name("name")
+            val_n = vd.child_by_field_name("value")
+            if name_n is None or val_n is None or name_n.type != "object_pattern":
+                continue
+            # RHS must be `dataSources` or `context.dataSources` (or similar)
+            val_text = _ts_text(val_n)
+            is_ds = val_text == "dataSources"
+            if not is_ds and val_n.type == "member_expression":
+                prop_n = val_n.child_by_field_name("property")
+                if prop_n and _ts_text(prop_n) == "dataSources":
+                    is_ds = True
+            if not is_ds:
+                continue
+            for child in name_n.named_children:
+                if child.type in (
+                    "shorthand_property_identifier_pattern",
+                    "identifier",
+                ):
+                    aliases.add(_ts_text(child))
+    return aliases
+
+
 def _find_datasource_calls(source: str) -> list[tuple[str, str]]:
-    """Find ``dataSources.method()`` / ``context.dataSources.method()`` calls.
+    """Find datasource method calls in resolver files.
+
+    Detects two patterns:
+      1. ``dataSources.X()`` / ``context.dataSources.X()``
+      2. ``const { mongodb } = dataSources; mongodb.X()``  (destructured alias)
 
     Returns ``[(resolver_fn_name, datasource_method_name)]``.
     Powers DELEGATES_TO edges: resolver Function → datasource Function.
@@ -1003,6 +1043,9 @@ def _find_datasource_calls(source: str) -> list[tuple[str, str]]:
     results: list[tuple[str, str]] = []
     seen: set[tuple[str, str]] = set()
 
+    # Collect destructured datasource aliases: const { mongodb } = dataSources
+    ds_aliases = _collect_datasource_aliases(root)
+
     for call in _iter_type(root, frozenset({"call_expression"})):
         fn_node = call.child_by_field_name("function")
         if fn_node is None or fn_node.type != "member_expression":
@@ -1012,13 +1055,19 @@ def _find_datasource_calls(source: str) -> list[tuple[str, str]]:
         if obj is None or prop is None:
             continue
 
-        # Accept: dataSources.foo() or context.dataSources.foo()
         obj_text = _ts_text(obj)
+
+        # Pattern 1: dataSources.foo() or context.dataSources.foo()
         is_ds = obj_text == "dataSources"
         if not is_ds and obj.type == "member_expression":
             inner_prop = obj.child_by_field_name("property")
             if inner_prop and _ts_text(inner_prop) == "dataSources":
                 is_ds = True
+
+        # Pattern 2: mongodb.foo()  where mongodb was destructured from dataSources
+        if not is_ds and obj_text in ds_aliases:
+            is_ds = True
+
         if not is_ds:
             continue
 
