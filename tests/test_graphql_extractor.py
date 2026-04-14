@@ -21,7 +21,6 @@ from code_review_graph.graphql_extractor import (
     BUILTIN_SCALARS,
     _collect_spread_resolver_exports,
     _find_loaders_usage,
-    _parse_gql_field,
     _parse_loaders_index,
     _parse_resolver_exports,
     _parse_resolver_index,
@@ -206,47 +205,6 @@ class TestParseSchemaGql:
         assert f is not None
         assert f["return_type"] == "SearchResult"
         assert "SearchFilter" in f["arg_types"]
-
-
-# ---------------------------------------------------------------------------
-# _parse_gql_field
-# ---------------------------------------------------------------------------
-
-
-class TestParseGqlField:
-    def test_simple_field(self):
-        f = _parse_gql_field("hello: String")
-        assert f is not None
-        assert f["name"] == "hello"
-        assert f["return_type"] == "String"
-
-    def test_non_null_field(self):
-        f = _parse_gql_field("id: ID!")
-        assert f is not None
-        assert f["return_type"] == "ID"
-        assert f["return_type_nullable"] is False
-
-    def test_list_field(self):
-        f = _parse_gql_field("items: [Item]")
-        assert f is not None
-        assert f["return_type"] == "Item"
-        assert f["return_type_is_list"] is True
-
-    def test_field_with_args(self):
-        f = _parse_gql_field("search(q: String, filter: FilterInput): Result")
-        assert f is not None
-        assert "FilterInput" in f["arg_types"]
-        assert "String" not in f["arg_types"]
-
-    def test_field_without_colon_returns_none(self):
-        assert _parse_gql_field("notAField") is None
-
-    def test_empty_line_returns_none(self):
-        assert _parse_gql_field("") is None
-        assert _parse_gql_field("   ") is None
-
-    def test_keyword_returns_none(self):
-        assert _parse_gql_field("type Something: Foo") is None
 
 
 # ---------------------------------------------------------------------------

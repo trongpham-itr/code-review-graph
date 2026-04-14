@@ -18,6 +18,9 @@ import re
 from pathlib import Path
 from typing import Optional
 
+from graphql import parse as gql_parse
+from graphql.language import ast as gql_ast
+
 from .graph import GraphStore
 from .parser import EdgeInfo, NodeInfo
 
@@ -53,47 +56,6 @@ BUILTIN_SCALARS: frozenset[str] = frozenset(
 # Apollo Federation internals — skip entirely
 _FEDERATION_SKIP: frozenset[str] = frozenset(
     {"_Entity", "_Service", "_Any", "_FieldSet"}
-)
-
-# SDL keywords that are not field names
-_SDL_KEYWORDS: frozenset[str] = frozenset(
-    {
-        "type",
-        "input",
-        "enum",
-        "interface",
-        "scalar",
-        "union",
-        "extend",
-        "directive",
-        "schema",
-        "implements",
-        "on",
-        "fragment",
-        "repeatable",
-        "true",
-        "false",
-        "null",
-        "QUERY",
-        "MUTATION",
-        "SUBSCRIPTION",
-        "FIELD",
-        "FRAGMENT_DEFINITION",
-        "FRAGMENT_SPREAD",
-        "INLINE_FRAGMENT",
-        "VARIABLE_DEFINITION",
-        "SCHEMA",
-        "SCALAR",
-        "OBJECT",
-        "FIELD_DEFINITION",
-        "ARGUMENT_DEFINITION",
-        "INTERFACE",
-        "UNION",
-        "ENUM",
-        "ENUM_VALUE",
-        "INPUT_OBJECT",
-        "INPUT_FIELD_DEFINITION",
-    }
 )
 
 
@@ -345,256 +307,152 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
 
 
 # ---------------------------------------------------------------------------
-# .schema.gql parser
+# .schema.gql parser (graphql-core)
 # ---------------------------------------------------------------------------
 
-
-def _strip_sdl_comments(source: str) -> str:
-    """Remove ``# line comments`` and ``\"\"\"block strings\"\"\"`` from GraphQL SDL source."""
-    # Strip block strings first (docstrings): """...""" — these may contain colons
-    # and other patterns that confuse the field parser.
-    source = re.sub(r'""".*?"""', " ", source, flags=re.DOTALL)
-    # Strip # line comments
-    lines = []
-    for line in source.splitlines():
-        idx = line.find("#")
-        if idx >= 0:
-            line = line[:idx]
-        lines.append(line)
-    return "\n".join(lines)
-
-
-def _find_block_end(source: str, start: int) -> int:
-    """Return index of the ``}`` that closes the ``{`` at *start*."""
-    depth = 0
-    for i in range(start, len(source)):
-        if source[i] == "{":
-            depth += 1
-        elif source[i] == "}":
-            depth -= 1
-            if depth == 0:
-                return i
-    return len(source) - 1
+_GQL_TYPE_KIND_MAP: dict[type, str] = {
+    gql_ast.ObjectTypeDefinitionNode: "type",
+    gql_ast.ObjectTypeExtensionNode: "type",
+    gql_ast.InputObjectTypeDefinitionNode: "input",
+    gql_ast.InputObjectTypeExtensionNode: "input",
+    gql_ast.EnumTypeDefinitionNode: "enum",
+    gql_ast.EnumTypeExtensionNode: "enum",
+    gql_ast.InterfaceTypeDefinitionNode: "interface",
+    gql_ast.InterfaceTypeExtensionNode: "interface",
+    gql_ast.UnionTypeDefinitionNode: "union",
+    gql_ast.UnionTypeExtensionNode: "union",
+    gql_ast.ScalarTypeDefinitionNode: "scalar",
+    gql_ast.ScalarTypeExtensionNode: "scalar",
+}
 
 
-def _unwrap_gql_type(type_str: str) -> tuple[str, bool, bool]:
-    """Unwrap ``[Type!]`` / ``Type!`` / ``[Type]!`` → ``(base, is_list, is_nullable)``."""
-    s = type_str.strip()
-    nullable = not s.endswith("!")
-    s = s.rstrip("!")
-    is_list = s.startswith("[")
-    if is_list:
-        s = s.strip("[]").rstrip("!")
-    return s.strip(), is_list, nullable
-
-
-def _join_field_lines(body: str) -> list[str]:
-    """Join multi-line field definitions (split by paren nesting) into single logical lines."""
-    lines: list[str] = []
-    current = ""
-    depth = 0
-    for raw_line in body.splitlines():
-        stripped = raw_line.strip()
-        if not stripped:
-            if current.strip():
-                lines.append(current.strip())
-                current = ""
-            continue
-        for ch in stripped:
-            if ch == "(":
-                depth += 1
-            elif ch == ")":
-                depth -= 1
-        current = (current + " " + stripped).strip() if current else stripped
-        if depth <= 0:
-            depth = 0
-            if current:
-                lines.append(current)
-                current = ""
-    if current.strip():
-        lines.append(current.strip())
-    return lines
-
-
-def _parse_gql_field(line: str) -> Optional[dict]:
-    """Parse one logical GraphQL field line. Returns a dict or None."""
-    line = line.strip()
-    if not line:
-        return None
-
-    name_m = re.match(r"^(\w+)", line)
-    if not name_m:
-        return None
-    name = name_m.group(1)
-
-    # Skip SDL keywords and Federation-injected fields (_entities, _service, etc.)
-    if name in _SDL_KEYWORDS or name.startswith("_"):
-        return None
-
-    rest = line[name_m.end():]
-
-    # Extract optional args: (arg: ArgType, ...)
-    arg_types: list[str] = []
-    if rest.startswith("("):
-        depth = 0
-        args_end = 0
-        for i, ch in enumerate(rest):
-            if ch == "(":
-                depth += 1
-            elif ch == ")":
-                depth -= 1
-                if depth == 0:
-                    args_end = i
-                    break
-        args_content = rest[1:args_end]
-        rest = rest[args_end + 1:]
-        for arg_m in re.finditer(r"\w+\s*:\s*([\w\[\]!]+)", args_content):
-            base, _, _ = _unwrap_gql_type(arg_m.group(1))
-            if base not in BUILTIN_SCALARS and base not in _FEDERATION_SKIP and base not in arg_types:
-                arg_types.append(base)
-
-    # Expect ": ReturnType"
-    ret_m = re.match(r"\s*:\s*([\w\[\]!]+)", rest)
-    if not ret_m:
-        return None
-    return_type, is_list, nullable = _unwrap_gql_type(ret_m.group(1))
-    rest = rest[ret_m.end():]
-
-    # Directives
-    directive_names = re.findall(r"@(\w+)", rest)
-
-    # @auth directive
-    auth: dict = {}
-    auth_m = re.search(r"@auth\s*\(([^)]+)\)", rest)
-    if auth_m:
-        ac = auth_m.group(1)
-        g_m = re.search(r"groups\s*:\s*\[([^\]]*)\]", ac)
-        r_m = re.search(r"roles\s*:\s*\[([^\]]*)\]", ac)
-        if g_m:
-            auth["groups"] = [x.strip() for x in g_m.group(1).split(",") if x.strip()]
-        if r_m:
-            auth["roles"] = [x.strip() for x in r_m.group(1).split(",") if x.strip()]
-
-    return {
-        "name": name,
-        "return_type": return_type,
-        "return_type_is_list": is_list,
-        "return_type_nullable": nullable,
-        "arg_types": arg_types,
-        "directives": [f"@{d}" for d in directive_names],
-        "auth": auth,
-    }
+def _unwrap_gql_type_node(node: object) -> tuple[str, bool, bool]:
+    """Unwrap ``NonNullTypeNode`` / ``ListTypeNode`` → ``(base_name, is_list, is_nullable)``."""
+    is_list = False
+    nullable = True
+    while True:
+        if isinstance(node, gql_ast.NonNullTypeNode):
+            nullable = False
+            node = node.type  # type: ignore[attr-defined]
+        elif isinstance(node, gql_ast.ListTypeNode):
+            is_list = True
+            node = node.type  # type: ignore[attr-defined]
+        else:
+            break
+    return node.name.value, is_list, nullable  # type: ignore[attr-defined]
 
 
 def _parse_schema_gql(source: str) -> tuple[list[dict], list[dict]]:
-    """Parse GraphQL SDL source.
+    """Parse GraphQL SDL source using graphql-core.
 
     Returns ``(type_defs, field_defs)`` where each entry is a plain dict.
+    graphql-core handles comments, block strings, multiline args, and all
+    directive syntax natively — no regex preprocessing needed.
     """
-    source = _strip_sdl_comments(source)
+    try:
+        doc = gql_parse(source)
+    except Exception as exc:
+        logger.warning("Failed to parse GraphQL SDL: %s", exc)
+        return [], []
+
     type_defs: list[dict] = []
     field_defs: list[dict] = []
 
-    header_re = re.compile(
-        r"\b(extend\s+)?(type|input|enum|interface|scalar|union)\s+(\w+)"
-        r"((?:(?!\{)[^;])*)",
-        re.DOTALL,
-    )
+    for defn in doc.definitions:
+        type_kind = _GQL_TYPE_KIND_MAP.get(type(defn))
+        if type_kind is None:
+            continue  # SchemaDefinitionNode, DirectiveDefinitionNode, etc.
 
-    pos = 0
-    src_len = len(source)
+        type_name = defn.name.value
 
-    while pos < src_len:
-        m = header_re.search(source, pos)
-        if not m:
-            break
-
-        is_extend = bool(m.group(1))  # noqa: F841 (kept for future use)
-        kw = m.group(2)
-        type_name = m.group(3)
-        header_rest = m.group(4) or ""
-
-        line_num = source[: m.start()].count("\n") + 1
-
-        # Skip federation internals, link__/federation__ types, and `schema` block
+        # Skip federation internals and injected namespace types
         if (
             type_name in _FEDERATION_SKIP
-            or type_name.startswith(("link__", "federation__"))
-            or type_name.startswith("_")
+            or type_name.startswith(("link__", "federation__", "_"))
         ):
-            pos = m.end()
+            continue
+        if type_kind == "scalar" and type_name in BUILTIN_SCALARS:
             continue
 
-        # Detect federation directives from the header
-        has_key = "@key" in header_rest
-        key_m = re.search(r"@key\s*\(\s*fields\s*:\s*[\"']([^\"']+)[\"']", header_rest)
-        key_fields = key_m.group(1) if key_m else ""
+        # Line numbers from AST token locations
+        line_start = defn.loc.start_token.line if defn.loc else 0
+        line_end = defn.loc.end_token.line if defn.loc else line_start
 
-        # Check whether a body block follows
-        after = source[m.end():]
-        stripped_after = after.lstrip()
-        has_body = stripped_after.startswith("{")
+        # Type-level directive names
+        type_dir_names = {d.name.value for d in (defn.directives or [])}
 
-        if kw == "scalar" or not has_body:
-            if type_name not in BUILTIN_SCALARS:
-                type_defs.append(
-                    {
-                        "name": type_name,
-                        "type_kind": kw,
-                        "is_shareable": "@shareable" in header_rest,
-                        "is_external": "@external" in header_rest,
-                        "is_federation_entity": has_key,
-                        "key_fields": key_fields,
-                        "line": line_num,
-                        "line_end": line_num,
-                    }
-                )
-            pos = m.end()
+        # @key(fields: "...") → federation entity
+        key_dir = next((d for d in (defn.directives or []) if d.name.value == "key"), None)
+        key_fields = ""
+        if key_dir:
+            for arg in key_dir.arguments:
+                if arg.name.value == "fields":
+                    key_fields = arg.value.value  # StringValueNode
+                    break
+
+        type_defs.append({
+            "name": type_name,
+            "type_kind": type_kind,
+            "is_shareable": "shareable" in type_dir_names,
+            "is_external": "external" in type_dir_names,
+            "is_federation_entity": key_dir is not None,
+            "key_fields": key_fields,
+            "line": line_start,
+            "line_end": line_end,
+        })
+
+        # Fields: only for type / input / interface
+        if type_kind not in ("type", "input", "interface"):
+            continue
+        if not getattr(defn, "fields", None):
             continue
 
-        # Find body block
-        brace_start = m.end() + (len(after) - len(stripped_after))
-        brace_end = _find_block_end(source, brace_start)
-        body = source[brace_start + 1 : brace_end]
-        line_end = source[:brace_end].count("\n") + 1
+        op = (
+            "query" if type_name == "Query"
+            else "mutation" if type_name == "Mutation"
+            else "subscription" if type_name == "Subscription"
+            else "type_field"
+        )
 
-        if type_name not in BUILTIN_SCALARS:
-            type_defs.append(
-                {
-                    "name": type_name,
-                    "type_kind": kw,
-                    "is_shareable": "@shareable" in header_rest,
-                    "is_external": "@external" in header_rest,
-                    "is_federation_entity": has_key,
-                    "key_fields": key_fields,
-                    "line": line_num,
-                    "line_end": line_end,
-                }
-            )
+        for fdef in defn.fields:
+            field_name = fdef.name.value
+            if field_name.startswith("_"):
+                continue
 
-        # Parse fields for type / input / interface
-        if kw in ("type", "input", "interface") and type_name not in BUILTIN_SCALARS:
-            op = (
-                "query"
-                if type_name == "Query"
-                else "mutation"
-                if type_name == "Mutation"
-                else "subscription"
-                if type_name == "Subscription"
-                else "type_field"
-            )
-            body_line_start = source[:brace_start].count("\n") + 1
+            return_type, is_list, nullable = _unwrap_gql_type_node(fdef.type)
+            if return_type in _FEDERATION_SKIP:
+                continue
 
-            for logical_line in _join_field_lines(body):
-                finfo = _parse_gql_field(logical_line)
-                if finfo:
-                    finfo["parent_type"] = type_name
-                    finfo["operation"] = op
-                    # Approximate line number (exact tracking inside body is best-effort)
-                    finfo["line"] = body_line_start + body[: body.find(finfo["name"])].count("\n")
-                    field_defs.append(finfo)
+            # Custom arg types only (skip builtins)
+            arg_types: list[str] = []
+            for arg in getattr(fdef, "arguments", None) or []:
+                base, _, _ = _unwrap_gql_type_node(arg.type)
+                if base not in BUILTIN_SCALARS and base not in _FEDERATION_SKIP and base not in arg_types:
+                    arg_types.append(base)
 
-        pos = brace_end + 1
+            # @auth(groups: [...], roles: [...])
+            auth: dict = {}
+            auth_dir = next((d for d in (fdef.directives or []) if d.name.value == "auth"), None)
+            if auth_dir:
+                for arg in auth_dir.arguments:
+                    if hasattr(arg.value, "values"):  # ListValueNode
+                        auth[arg.name.value] = [
+                            v.value for v in arg.value.values if hasattr(v, "value")
+                        ]
+
+            field_defs.append({
+                "name": field_name,
+                "parent_type": type_name,
+                "operation": op,
+                "return_type": return_type,
+                "return_type_is_list": is_list,
+                "return_type_nullable": nullable,
+                "arg_types": arg_types,
+                "directives": [f"@{d.name.value}" for d in (fdef.directives or [])],
+                "auth": auth,
+                "is_federation_key": any(d.name.value == "key" for d in (fdef.directives or [])),
+                "line": fdef.loc.start_token.line if fdef.loc else line_start,
+            })
 
     return type_defs, field_defs
 
