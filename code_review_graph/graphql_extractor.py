@@ -152,6 +152,7 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
                 "is_external": td.get("is_external", False),
                 "is_federation_entity": td.get("is_federation_entity", False),
                 "key_fields": td.get("key_fields", ""),
+                "description": td.get("description", ""),
             },
         )
         store.upsert_node(node)
@@ -180,6 +181,7 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
                 "auth": fd.get("auth", {}),
                 "directives": fd.get("directives", []),
                 "is_federation_key": fd.get("is_federation_key", False),
+                "description": fd.get("description", ""),
             },
         )
         store.upsert_node(node)
@@ -495,6 +497,7 @@ def _parse_schema_gql(source: str) -> tuple[list[dict], list[dict]]:
             "key_fields": key_fields,
             "line": line_start,
             "line_end": line_end,
+            "description": getattr(defn, "description", None) and defn.description.value or "",
         })
 
         # Fields: only for type / input / interface
@@ -548,6 +551,7 @@ def _parse_schema_gql(source: str) -> tuple[list[dict], list[dict]]:
                 "auth": auth,
                 "is_federation_key": any(d.name.value == "key" for d in (fdef.directives or [])),
                 "line": fdef.loc.start_token.line if fdef.loc else line_start,
+                "description": fdef.description.value if fdef.description else "",
             })
 
     return type_defs, field_defs
