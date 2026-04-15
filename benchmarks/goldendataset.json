@@ -1,0 +1,2705 @@
+[
+  {
+    "id": "TC-001",
+    "description": "Total Function nodes",
+    "category": "node_counts",
+    "query": "MATCH (fn:Function) RETURN count(fn) AS total",
+    "expected": 8376,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-002",
+    "description": "Total File nodes",
+    "category": "node_counts",
+    "query": "MATCH (f:File) RETURN count(f) AS total",
+    "expected": 3227,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-003",
+    "description": "Total GQLField nodes",
+    "category": "node_counts",
+    "query": "MATCH (g:GQLField) RETURN count(g) AS total",
+    "expected": 5514,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-004",
+    "description": "Total GQLType nodes",
+    "category": "node_counts",
+    "query": "MATCH (t:GQLType) RETURN count(t) AS total",
+    "expected": 982,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-005",
+    "description": "Total Loader nodes",
+    "category": "node_counts",
+    "query": "MATCH (l:Loader) RETURN count(l) AS total",
+    "expected": 124,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-006",
+    "description": "Total Test nodes",
+    "category": "node_counts",
+    "query": "MATCH (t:Test) RETURN count(t) AS total",
+    "expected": 357,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-007",
+    "description": "Total Class nodes",
+    "category": "node_counts",
+    "query": "MATCH (c:Class) RETURN count(c) AS total",
+    "expected": 271,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-008",
+    "description": "GQLField with operation = query",
+    "category": "node_counts",
+    "query": "MATCH (g:GQLField) WHERE g.operation = 'query' RETURN count(g) AS total",
+    "expected": 245,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-009",
+    "description": "GQLField with operation = mutation",
+    "category": "node_counts",
+    "query": "MATCH (g:GQLField) WHERE g.operation = 'mutation' RETURN count(g) AS total",
+    "expected": 297,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-010",
+    "description": "GQLField with operation = type_field",
+    "category": "node_counts",
+    "query": "MATCH (g:GQLField) WHERE g.operation = 'type_field' RETURN count(g) AS total",
+    "expected": 4972,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-011",
+    "description": "Total CALLS relationships",
+    "category": "rel_counts",
+    "query": "MATCH ()-[r:CALLS]->() RETURN count(r) AS total",
+    "expected": 6407,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-012",
+    "description": "Total CONTAINS relationships",
+    "category": "rel_counts",
+    "query": "MATCH ()-[r:CONTAINS]->() RETURN count(r) AS total",
+    "expected": 8979,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-013",
+    "description": "Total IMPORTS_FROM relationships",
+    "category": "rel_counts",
+    "query": "MATCH ()-[r:IMPORTS_FROM]->() RETURN count(r) AS total",
+    "expected": 4303,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-014",
+    "description": "Total DELEGATES_TO relationships",
+    "category": "rel_counts",
+    "query": "MATCH ()-[r:DELEGATES_TO]->() RETURN count(r) AS total",
+    "expected": 575,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-015",
+    "description": "Total RESOLVES relationships",
+    "category": "rel_counts",
+    "query": "MATCH ()-[r:RESOLVES]->() RETURN count(r) AS total",
+    "expected": 871,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-016",
+    "description": "Total USES_LOADER relationships",
+    "category": "rel_counts",
+    "query": "MATCH ()-[r:USES_LOADER]->() RETURN count(r) AS total",
+    "expected": 155,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-017",
+    "description": "Total TESTED_BY relationships",
+    "category": "rel_counts",
+    "query": "MATCH ()-[r:TESTED_BY]->() RETURN count(r) AS total",
+    "expected": 652,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-018",
+    "description": "Total BACKED_BY relationships",
+    "category": "rel_counts",
+    "query": "MATCH ()-[r:BACKED_BY]->() RETURN count(r) AS total",
+    "expected": 124,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-019",
+    "description": "Function count in support_api",
+    "category": "repo_stats",
+    "query": "MATCH (fn:Function) WHERE fn.repo = 'btcy-bioflux-backend-support_api' RETURN count(fn) AS total",
+    "expected": 1185,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-020",
+    "description": "Function count in study_api",
+    "category": "repo_stats",
+    "query": "MATCH (fn:Function) WHERE fn.repo = 'btcy-bioflux-backend-study_api' RETURN count(fn) AS total",
+    "expected": 598,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-021",
+    "description": "File count in support_api",
+    "category": "repo_stats",
+    "query": "MATCH (f:File) WHERE f.repo = 'btcy-bioflux-backend-support_api' RETURN count(f) AS total",
+    "expected": 335,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-022",
+    "description": "File count in study_api",
+    "category": "repo_stats",
+    "query": "MATCH (f:File) WHERE f.repo = 'btcy-bioflux-backend-study_api' RETURN count(f) AS total",
+    "expected": 181,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-023",
+    "description": "File count in graphql_gateway",
+    "category": "repo_stats",
+    "query": "MATCH (f:File) WHERE f.repo = 'btcy-bioflux-backend-graphql_gateway' RETURN count(f) AS total",
+    "expected": 37,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-graphql_gateway"
+  },
+  {
+    "id": "TC-024",
+    "description": "File count in tcp_collector",
+    "category": "repo_stats",
+    "query": "MATCH (f:File) WHERE f.repo = 'btcy-bioflux-backend-tcp_collector' RETURN count(f) AS total",
+    "expected": 178,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-tcp_collector"
+  },
+  {
+    "id": "TC-025",
+    "description": "Loader count in support_api",
+    "category": "repo_stats",
+    "query": "MATCH (l:Loader) WHERE l.repo = 'btcy-bioflux-backend-support_api' RETURN count(l) AS total",
+    "expected": 28,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-026",
+    "description": "Loader count in admin_api",
+    "category": "repo_stats",
+    "query": "MATCH (l:Loader) WHERE l.repo = 'btcy-bioflux-backend-admin_api' RETURN count(l) AS total",
+    "expected": 11,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-027",
+    "description": "CALLS within support_api",
+    "category": "repo_stats",
+    "query": "MATCH (fn:Function)-[:CALLS]->(fn2:Function) WHERE fn.repo = 'btcy-bioflux-backend-support_api' AND fn2.repo = 'btcy-bioflux-backend-support_api' RETURN count(*) AS total",
+    "expected": 933,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-028",
+    "description": "Top repo by file count = support_api",
+    "category": "repo_stats",
+    "query": "MATCH (f:File) WITH f.repo AS repo, count(f) AS cnt ORDER BY cnt DESC LIMIT 1 RETURN repo",
+    "expected": "btcy-bioflux-backend-support_api",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-029",
+    "description": "Distinct repo count",
+    "category": "repo_stats",
+    "query": "MATCH (fn:Function) RETURN count(DISTINCT fn.repo) AS repo_count",
+    "expected": 44,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-030",
+    "description": "Function handleGraphqlError exists in study_api",
+    "category": "function_lookup",
+    "query": "MATCH (fn:Function {name: 'handleGraphqlError'}) RETURN fn.repo",
+    "expected": "btcy-bioflux-backend-study_api",
+    "match_mode": "contains",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-031",
+    "description": "Function assignAuditPayload exists in support_api",
+    "category": "function_lookup",
+    "query": "MATCH (fn:Function {name: 'assignAuditPayload'}) RETURN fn.repo",
+    "expected": "btcy-bioflux-backend-support_api",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-032",
+    "description": "Function verifyToken in graphql_gateway",
+    "category": "function_lookup",
+    "query": "MATCH (fn:Function {name: 'verifyToken'}) WHERE fn.repo = 'btcy-bioflux-backend-graphql_gateway' RETURN fn.name",
+    "expected": "verifyToken",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-graphql_gateway"
+  },
+  {
+    "id": "TC-033",
+    "description": "Function notifySocketioClients in call_center_api",
+    "category": "function_lookup",
+    "query": "MATCH (fn:Function {name: 'notifySocketioClients'}) RETURN fn.repo",
+    "expected": "btcy-bioflux-backend-call_center_api",
+    "match_mode": "contains",
+    "repo": "btcy-bioflux-backend-call_center_api"
+  },
+  {
+    "id": "TC-034",
+    "description": "handleGraphqlError caller count = 68",
+    "category": "function_lookup",
+    "query": "MATCH (fn:Function {name: 'handleGraphqlError'})<-[:CALLS]-(caller) RETURN count(caller) AS call_count",
+    "expected": 68,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-035",
+    "description": "assignAuditPayload caller count = 43",
+    "category": "function_lookup",
+    "query": "MATCH (fn:Function {name: 'assignAuditPayload'})<-[:CALLS]-(caller) RETURN count(caller) AS call_count",
+    "expected": 43,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-036",
+    "description": "formatGraphQLTypeResponse caller count = 38",
+    "category": "function_lookup",
+    "query": "MATCH (fn:Function {name: 'formatGraphQLTypeResponse'})<-[:CALLS]-(caller) RETURN count(caller) AS call_count",
+    "expected": 38,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-037",
+    "description": "Functions with > 10 callers (hotspots) = 37",
+    "category": "function_lookup",
+    "query": "MATCH (fn:Function)<-[:CALLS]-(caller) WITH fn, count(caller) AS cnt WHERE cnt > 10 RETURN count(fn) AS hotspot_count",
+    "expected": 37,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-038",
+    "description": "Functions with no callers = 5224",
+    "category": "function_lookup",
+    "query": "MATCH (fn:Function) WHERE NOT (fn)<-[:CALLS]-() RETURN count(fn) AS total",
+    "expected": 5224,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-039",
+    "description": "sendEmail caller count in support_api = 28",
+    "category": "function_lookup",
+    "query": "MATCH (fn:Function {name: 'sendEmail', repo: 'btcy-bioflux-backend-support_api'})<-[:CALLS]-(caller) RETURN count(caller) AS call_count",
+    "expected": 28,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-040",
+    "description": "GQL query field 'devices' exists",
+    "category": "graphql_fields",
+    "query": "MATCH (g:GQLField {name: 'devices', operation: 'query'}) RETURN g.name",
+    "expected": "devices",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-041",
+    "description": "GQL query field 'device' exists",
+    "category": "graphql_fields",
+    "query": "MATCH (g:GQLField {name: 'device', operation: 'query'}) RETURN g.name",
+    "expected": "device",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-042",
+    "description": "GQL mutation 'createDevice' exists",
+    "category": "graphql_fields",
+    "query": "MATCH (g:GQLField {name: 'createDevice', operation: 'mutation'}) RETURN g.name",
+    "expected": "createDevice",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-043",
+    "description": "GQL mutation 'updateDevice' exists",
+    "category": "graphql_fields",
+    "query": "MATCH (g:GQLField {name: 'updateDevice', operation: 'mutation'}) RETURN g.name",
+    "expected": "updateDevice",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-044",
+    "description": "GQL query 'biokitDevices' exists",
+    "category": "graphql_fields",
+    "query": "MATCH (g:GQLField {name: 'biokitDevices', operation: 'query'}) RETURN g.name",
+    "expected": "biokitDevices",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-045",
+    "description": "GQL mutation 'createOta' exists",
+    "category": "graphql_fields",
+    "query": "MATCH (g:GQLField {name: 'createOta', operation: 'mutation'}) RETURN g.name",
+    "expected": "createOta",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-046",
+    "description": "GQL query 'searchUsersByEmail' exists",
+    "category": "graphql_fields",
+    "query": "MATCH (g:GQLField {name: 'searchUsersByEmail', operation: 'query'}) RETURN g.name",
+    "expected": "searchUsersByEmail",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-047",
+    "description": "GQL mutation 'updateBiokitDevice' exists",
+    "category": "graphql_fields",
+    "query": "MATCH (g:GQLField {name: 'updateBiokitDevice', operation: 'mutation'}) RETURN g.name",
+    "expected": "updateBiokitDevice",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-048",
+    "description": "GQL query 'deviceHistories' exists",
+    "category": "graphql_fields",
+    "query": "MATCH (g:GQLField {name: 'deviceHistories', operation: 'query'}) RETURN g.name",
+    "expected": "deviceHistories",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-049",
+    "description": "GQL mutation 'deleteOta' exists",
+    "category": "graphql_fields",
+    "query": "MATCH (g:GQLField {name: 'deleteOta', operation: 'mutation'}) RETURN g.name",
+    "expected": "deleteOta",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-050",
+    "description": "Loader 'shipmentLabel' in support_api",
+    "category": "loaders",
+    "query": "MATCH (l:Loader {name: 'shipmentLabel', repo: 'btcy-bioflux-backend-support_api'}) RETURN l.name",
+    "expected": "shipmentLabel",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-051",
+    "description": "Loader 'user' in common_reference",
+    "category": "loaders",
+    "query": "MATCH (l:Loader {name: 'user', repo: 'btcy-bioflux-backend-common_reference'}) RETURN l.name",
+    "expected": "user",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-common_reference"
+  },
+  {
+    "id": "TC-052",
+    "description": "shipmentLabel usage count = 7",
+    "category": "loaders",
+    "query": "MATCH (l:Loader {name: 'shipmentLabel'})<-[:USES_LOADER]-(fn:Function) RETURN count(fn) AS usage_count",
+    "expected": 7,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-053",
+    "description": "rmaTicket usage count = 6",
+    "category": "loaders",
+    "query": "MATCH (l:Loader {name: 'rmaTicket'})<-[:USES_LOADER]-(fn:Function) RETURN count(fn) AS usage_count",
+    "expected": 6,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-054",
+    "description": "study loader usage in study_api >= 4",
+    "category": "loaders",
+    "query": "MATCH (l:Loader {name: 'study', repo: 'btcy-bioflux-backend-study_api'})<-[:USES_LOADER]-(fn:Function) RETURN count(fn) AS usage_count",
+    "expected": 4,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-055",
+    "description": "resolveCallCenterQaGroups uses loader callCenterQaGroupsByFacilityGroup",
+    "category": "loaders",
+    "query": "MATCH (fn:Function {name: 'resolveCallCenterQaGroups'})-[:USES_LOADER]->(l:Loader) RETURN l.name",
+    "expected": "callCenterQaGroupsByFacilityGroup",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-056",
+    "description": "resolveCallCenterTechnicianGroups uses loader callCenterTechnicianGroupsByFacilityGroup",
+    "category": "loaders",
+    "query": "MATCH (fn:Function {name: 'resolveCallCenterTechnicianGroups'})-[:USES_LOADER]->(l:Loader) RETURN l.name",
+    "expected": "callCenterTechnicianGroupsByFacilityGroup",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-057",
+    "description": "All loaders have BACKED_BY = 124",
+    "category": "loaders",
+    "query": "MATCH (l:Loader)-[:BACKED_BY]->() RETURN count(l) AS total",
+    "expected": 124,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-058",
+    "description": "Direct callers of handleGraphqlError = 68",
+    "category": "call_chain",
+    "query": "MATCH (caller:Function)-[:CALLS]->(fn:Function {name: 'handleGraphqlError'}) RETURN count(caller) AS direct_callers",
+    "expected": 68,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-059",
+    "description": "Direct callers of triggerStudyLog = 24",
+    "category": "call_chain",
+    "query": "MATCH (caller:Function)-[:CALLS]->(fn:Function {name: 'triggerStudyLog'}) RETURN count(caller) AS direct_callers",
+    "expected": 24,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-060",
+    "description": "Direct callers of deviceWriteLog = 40",
+    "category": "call_chain",
+    "query": "MATCH (caller:Function)-[:CALLS]->(fn:Function {name: 'deviceWriteLog'}) RETURN count(caller) AS direct_callers",
+    "expected": 40,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-tcp_collector"
+  },
+  {
+    "id": "TC-061",
+    "description": "createBiokitDeviceObject calls mapBiokitDeviceType",
+    "category": "call_chain",
+    "query": "MATCH (fn:Function {name: 'createBiokitDeviceObject'})-[:CALLS]->(callee:Function) RETURN callee.name",
+    "expected": "mapBiokitDeviceType",
+    "match_mode": "contains",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-062",
+    "description": "buildQueryBiocareDevice calls decodeNextPageToken",
+    "category": "call_chain",
+    "query": "MATCH (fn:Function {name: 'buildQueryBiocareDevice'})-[:CALLS]->(callee:Function) RETURN callee.name",
+    "expected": "decodeNextPageToken",
+    "match_mode": "contains",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-063",
+    "description": "buildQueryBiocareDevice calls escapeRegex",
+    "category": "call_chain",
+    "query": "MATCH (fn:Function {name: 'buildQueryBiocareDevice'})-[:CALLS]->(callee:Function) RETURN callee.name",
+    "expected": "escapeRegex",
+    "match_mode": "contains",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-064",
+    "description": "deviceHistories DELEGATES_TO getDeviceHistories",
+    "category": "call_chain",
+    "query": "MATCH (fn:Function {name: 'deviceHistories'})-[:DELEGATES_TO]->(fn2:Function) RETURN fn2.name",
+    "expected": "getDeviceHistories",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-065",
+    "description": "latestOta DELEGATES_TO getLatestOta",
+    "category": "call_chain",
+    "query": "MATCH (fn:Function {name: 'latestOta'})-[:DELEGATES_TO]->(fn2:Function) RETURN fn2.name",
+    "expected": "getLatestOta",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-066",
+    "description": "otas DELEGATES_TO listOtas",
+    "category": "call_chain",
+    "query": "MATCH (fn:Function {name: 'otas'})-[:DELEGATES_TO]->(fn2:Function) RETURN fn2.name",
+    "expected": "listOtas",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-067",
+    "description": "checkRoleUser caller count = 24",
+    "category": "call_chain",
+    "query": "MATCH (caller:Function)-[:CALLS]->(fn:Function {name: 'checkRoleUser'}) RETURN count(caller) AS cnt",
+    "expected": 24,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-068",
+    "description": "File count in ai_api = 165",
+    "category": "file_structure",
+    "query": "MATCH (f:File) WHERE f.repo = 'btcy-bioflux-backend-ai_api' RETURN count(f) AS total",
+    "expected": 165,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-ai_api"
+  },
+  {
+    "id": "TC-069",
+    "description": "File count in admin_api = 160",
+    "category": "file_structure",
+    "query": "MATCH (f:File) WHERE f.repo = 'btcy-bioflux-backend-admin_api' RETURN count(f) AS total",
+    "expected": 160,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-070",
+    "description": "File count in device_management_api = 121",
+    "category": "file_structure",
+    "query": "MATCH (f:File) WHERE f.repo = 'btcy-biocare-backend-device_management_api' RETURN count(f) AS total",
+    "expected": 121,
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-071",
+    "description": "File count in common_reference = 114",
+    "category": "file_structure",
+    "query": "MATCH (f:File) WHERE f.repo = 'btcy-bioflux-backend-common_reference' RETURN count(f) AS total",
+    "expected": 114,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-common_reference"
+  },
+  {
+    "id": "TC-072",
+    "description": "File count in sales_api = 178",
+    "category": "file_structure",
+    "query": "MATCH (f:File) WHERE f.repo = 'btcy-bioflux-backend-sales_api' RETURN count(f) AS total",
+    "expected": 178,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-sales_api"
+  },
+  {
+    "id": "TC-073",
+    "description": "Max functions per file in support_api = 51",
+    "category": "file_structure",
+    "query": "MATCH (f:File)-[:CONTAINS]->(fn:Function) WHERE f.repo = 'btcy-bioflux-backend-support_api' WITH f, count(fn) AS cnt ORDER BY cnt DESC LIMIT 1 RETURN cnt",
+    "expected": 51,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-074",
+    "description": "Max functions per file in study_api = 44",
+    "category": "file_structure",
+    "query": "MATCH (f:File)-[:CONTAINS]->(fn:Function) WHERE f.repo = 'btcy-bioflux-backend-study_api' WITH f, count(fn) AS cnt ORDER BY cnt DESC LIMIT 1 RETURN cnt",
+    "expected": 44,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-075",
+    "description": "Max functions per file in ai_api = 42",
+    "category": "file_structure",
+    "query": "MATCH (f:File)-[:CONTAINS]->(fn:Function) WHERE f.repo = 'btcy-bioflux-backend-ai_api' WITH f, count(fn) AS cnt ORDER BY cnt DESC LIMIT 1 RETURN cnt",
+    "expected": 42,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-ai_api"
+  },
+  {
+    "id": "TC-076",
+    "description": "Class FacilityBuilder in admin_api",
+    "category": "class_gqltype",
+    "query": "MATCH (c:Class {name: 'FacilityBuilder', repo: 'btcy-bioflux-backend-admin_api'}) RETURN c.name",
+    "expected": "FacilityBuilder",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-077",
+    "description": "Class RedisJson in ai_api",
+    "category": "class_gqltype",
+    "query": "MATCH (c:Class {name: 'RedisJson', repo: 'btcy-bioflux-backend-ai_api'}) RETURN c.name",
+    "expected": "RedisJson",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-ai_api"
+  },
+  {
+    "id": "TC-078",
+    "description": "Class MessageQueue in ai_api",
+    "category": "class_gqltype",
+    "query": "MATCH (c:Class {name: 'MessageQueue', repo: 'btcy-bioflux-backend-ai_api'}) RETURN c.name",
+    "expected": "MessageQueue",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-ai_api"
+  },
+  {
+    "id": "TC-079",
+    "description": "GQLType DeviceFilter in device_management_api",
+    "category": "class_gqltype",
+    "query": "MATCH (t:GQLType {name: 'DeviceFilter', repo: 'btcy-biocare-backend-device_management_api'}) RETURN t.name",
+    "expected": "DeviceFilter",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-080",
+    "description": "GQLType DateRangeInput in device_management_api",
+    "category": "class_gqltype",
+    "query": "MATCH (t:GQLType {name: 'DateRangeInput', repo: 'btcy-biocare-backend-device_management_api'}) RETURN t.name",
+    "expected": "DateRangeInput",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-081",
+    "description": "GQLField deviceModel FIELD_OF OtasFilter",
+    "category": "class_gqltype",
+    "query": "MATCH (g:GQLField {name: 'deviceModel'})-[:FIELD_OF]->(t:GQLType {name: 'OtasFilter'}) RETURN g.name",
+    "expected": "deviceModel",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-082",
+    "description": "GQLField cursor FIELD_OF OtasFilter",
+    "category": "class_gqltype",
+    "query": "MATCH (g:GQLField {name: 'cursor'})-[:FIELD_OF]->(t:GQLType {name: 'OtasFilter'}) RETURN g.name",
+    "expected": "cursor",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-083",
+    "description": "Untested functions = 8350",
+    "category": "test_coverage",
+    "query": "MATCH (fn:Function) WHERE NOT (fn)-[:TESTED_BY]->() RETURN count(fn) AS untested",
+    "expected": 8350,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-084",
+    "description": "Tested functions >= 26",
+    "category": "test_coverage",
+    "query": "MATCH (fn:Function)-[:TESTED_BY]->() RETURN count(DISTINCT fn) AS tested",
+    "expected": 26,
+    "match_mode": "gte",
+    "repo": null
+  },
+  {
+    "id": "TC-085",
+    "description": "Tests in auditor >= 100",
+    "category": "test_coverage",
+    "query": "MATCH (t:Test) WHERE t.repo = 'btcy-bioflux-backend-auditor' RETURN count(t) AS total",
+    "expected": 100,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-auditor"
+  },
+  {
+    "id": "TC-086",
+    "description": "testMissingRequiredFields has >= 2 tests",
+    "category": "test_coverage",
+    "query": "MATCH (fn:Function {name: 'testMissingRequiredFields'})-[:TESTED_BY]->(t:Test) RETURN count(t) AS test_count",
+    "expected": 2,
+    "match_mode": "gte",
+    "repo": null
+  },
+  {
+    "id": "TC-087",
+    "description": "compareData has >= 2 tests",
+    "category": "test_coverage",
+    "query": "MATCH (fn:Function {name: 'compareData'})-[:TESTED_BY]->(t:Test) RETURN count(t) AS test_count",
+    "expected": 2,
+    "match_mode": "gte",
+    "repo": null
+  },
+  {
+    "id": "TC-088",
+    "description": "Specific test node exists in auditor",
+    "category": "test_coverage",
+    "query": "MATCH (t:Test {name: 'it:Expect Success - Get recent inboxes@L993'}) RETURN t.repo",
+    "expected": "btcy-bioflux-backend-auditor",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-089",
+    "description": "Top repo by CALLS count >= 900",
+    "category": "advanced",
+    "query": "MATCH (fn:Function)-[:CALLS]->(fn2:Function) WHERE fn.repo = fn2.repo WITH fn.repo AS repo, count(*) AS cnt ORDER BY cnt DESC LIMIT 1 RETURN cnt",
+    "expected": 900,
+    "match_mode": "gte",
+    "repo": null
+  },
+  {
+    "id": "TC-090",
+    "description": "Functions that DELEGATES_TO at least one target >= 10",
+    "category": "advanced",
+    "query": "MATCH (fn:Function)-[:DELEGATES_TO]->(fn2:Function) RETURN count(DISTINCT fn) AS cnt",
+    "expected": 10,
+    "match_mode": "gte",
+    "repo": null
+  },
+  {
+    "id": "TC-091",
+    "description": "RESOLVES_EXTERNAL count = 13",
+    "category": "advanced",
+    "query": "MATCH ()-[r:RESOLVES_EXTERNAL]->() RETURN count(r) AS total",
+    "expected": 13,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-092",
+    "description": "RESOLVES_REF count = 32",
+    "category": "advanced",
+    "query": "MATCH ()-[r:RESOLVES_REF]->() RETURN count(r) AS total",
+    "expected": 32,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-093",
+    "description": "Functions using a loader >= 50",
+    "category": "advanced",
+    "query": "MATCH (fn:Function)-[:USES_LOADER]->() RETURN count(DISTINCT fn) AS fn_count",
+    "expected": 50,
+    "match_mode": "gte",
+    "repo": null
+  },
+  {
+    "id": "TC-094",
+    "description": "File IMPORTS_FROM File >= 1000",
+    "category": "advanced",
+    "query": "MATCH (f:File)-[:IMPORTS_FROM]->(f2:File) RETURN count(*) AS total",
+    "expected": 1000,
+    "match_mode": "gte",
+    "repo": null
+  },
+  {
+    "id": "TC-095",
+    "description": "Functions that use a loader and call others = 16",
+    "category": "advanced",
+    "query": "MATCH (fn:Function)-[:CALLS]->(fn2:Function) WITH DISTINCT fn MATCH (fn)-[:USES_LOADER]->() RETURN count(DISTINCT fn) AS cnt",
+    "expected": 16,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-096",
+    "description": "REFERENCES relationship count = 4283",
+    "category": "advanced",
+    "query": "MATCH ()-[r:REFERENCES]->() RETURN count(r) AS total",
+    "expected": 4283,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-097",
+    "description": "RETURNS relationship count = 1343",
+    "category": "advanced",
+    "query": "MATCH ()-[r:RETURNS]->() RETURN count(r) AS total",
+    "expected": 1343,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-098",
+    "description": "FIELD_OF relationship count = 5501",
+    "category": "advanced",
+    "query": "MATCH ()-[r:FIELD_OF]->() RETURN count(r) AS total",
+    "expected": 5501,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-099",
+    "description": "notifyHolterProfile callers depth 1 >= 24",
+    "category": "advanced",
+    "query": "MATCH (caller:Function)-[:CALLS]->(fn:Function {name: 'notifyHolterProfile'}) RETURN count(DISTINCT caller) AS affected",
+    "expected": 24,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-ai_api"
+  },
+  {
+    "id": "TC-100",
+    "description": "appDeviceLogFromS3 DELEGATES_TO self (recursive)",
+    "category": "advanced",
+    "query": "MATCH (fn:Function {name: 'appDeviceLogFromS3'})-[:DELEGATES_TO]->(fn2:Function) RETURN fn2.name",
+    "expected": "appDeviceLogFromS3",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-101",
+    "description": "Total Function -[RESOLVES]-> GQLField = 871",
+    "category": "resolver",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField) RETURN count(*) AS total",
+    "expected": 871,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-102",
+    "description": "Resolvers for query fields = 244",
+    "category": "resolver",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {operation: 'query'}) RETURN count(*) AS total",
+    "expected": 244,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-103",
+    "description": "Resolvers for mutation fields = 295",
+    "category": "resolver",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {operation: 'mutation'}) RETURN count(*) AS total",
+    "expected": 295,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-104",
+    "description": "Resolvers for type_field = 332",
+    "category": "resolver",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {operation: 'type_field'}) RETURN count(*) AS total",
+    "expected": 332,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-105",
+    "description": "resolveDeviceSale resolves field deviceSale (type_field)",
+    "category": "resolver",
+    "query": "MATCH (fn:Function {name: 'resolveDeviceSale'})-[:RESOLVES]->(g:GQLField) RETURN g.name",
+    "expected": "deviceSale",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-106",
+    "description": "resolveCanUpdateFirmware resolves field canUpdateFirmware",
+    "category": "resolver",
+    "query": "MATCH (fn:Function {name: 'resolveCanUpdateFirmware'})-[:RESOLVES]->(g:GQLField) RETURN g.name",
+    "expected": "canUpdateFirmware",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-107",
+    "description": "validateDeviceOfBiokit resolves query field",
+    "category": "resolver",
+    "query": "MATCH (fn:Function {name: 'validateDeviceOfBiokit'})-[:RESOLVES]->(g:GQLField {operation: 'query'}) RETURN g.name",
+    "expected": "validDeviceOfBiokit",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-108",
+    "description": "devices resolver function exists in device_management_api",
+    "category": "resolver",
+    "query": "MATCH (fn:Function {name: 'devices'})-[:RESOLVES]->(g:GQLField {operation: 'query'}) WHERE fn.repo = 'btcy-biocare-backend-device_management_api' RETURN fn.name",
+    "expected": "devices",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-109",
+    "description": "Resolvers that also CALL other functions = 57",
+    "category": "resolver",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField) WHERE (fn)-[:CALLS]->() RETURN count(DISTINCT fn) AS total",
+    "expected": 57,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-110",
+    "description": "Resolvers that use a DataLoader = 110",
+    "category": "resolver",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField) WHERE (fn)-[:USES_LOADER]->() RETURN count(DISTINCT fn) AS total",
+    "expected": 110,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-111",
+    "description": "query fields without any resolver = 3",
+    "category": "resolver",
+    "query": "MATCH (g:GQLField) WHERE NOT (g)<-[:RESOLVES]-() AND NOT (g)<-[:RESOLVES_EXTERNAL]-() AND g.operation IN ['query', 'mutation'] RETURN count(g) AS total",
+    "expected": 3,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-112",
+    "description": "__resolveReference resolves GQLType Device",
+    "category": "resolver",
+    "query": "MATCH (fn:Function {name: '__resolveReference'})-[:RESOLVES_REF]->(t:GQLType {name: 'Device'}) RETURN t.name",
+    "expected": "Device",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-113",
+    "description": "__resolveReference resolves GQLType Study in ai_api",
+    "category": "resolver",
+    "query": "MATCH (fn:Function {name: '__resolveReference', repo: 'btcy-bioflux-backend-ai_api'})-[:RESOLVES_REF]->(t:GQLType) RETURN t.name",
+    "expected": "Study",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-ai_api"
+  },
+  {
+    "id": "TC-114",
+    "description": "__resolveReference resolves GQLType Invoice in billing_api",
+    "category": "resolver",
+    "query": "MATCH (fn:Function {name: '__resolveReference', repo: 'btcy-bioflux-backend-billing_api'})-[:RESOLVES_REF]->(t:GQLType) RETURN t.name",
+    "expected": "Invoice",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-billing_api"
+  },
+  {
+    "id": "TC-115",
+    "description": "Top repo by query+mutation GQLField count = support_api",
+    "category": "resolver",
+    "query": "MATCH (g:GQLField) WHERE g.operation IN ['query', 'mutation'] WITH g.repo AS repo, count(g) AS cnt ORDER BY cnt DESC LIMIT 1 RETURN repo",
+    "expected": "btcy-bioflux-backend-support_api",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-116",
+    "description": "support_api has 86 query+mutation fields",
+    "category": "resolver",
+    "query": "MATCH (g:GQLField) WHERE g.operation IN ['query', 'mutation'] AND g.repo = 'btcy-bioflux-backend-support_api' RETURN count(g) AS total",
+    "expected": 86,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-117",
+    "description": "admin_api has 82 query+mutation fields",
+    "category": "resolver",
+    "query": "MATCH (g:GQLField) WHERE g.operation IN ['query', 'mutation'] AND g.repo = 'btcy-bioflux-backend-admin_api' RETURN count(g) AS total",
+    "expected": 82,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-118",
+    "description": "study_api has 66 query+mutation fields",
+    "category": "resolver",
+    "query": "MATCH (g:GQLField) WHERE g.operation IN ['query', 'mutation'] AND g.repo = 'btcy-bioflux-backend-study_api' RETURN count(g) AS total",
+    "expected": 66,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-119",
+    "description": "ACCEPTS (GQLField -> GQLType) total = 356",
+    "category": "graphql_schema",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType) RETURN count(*) AS total",
+    "expected": 356,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-120",
+    "description": "RETURNS (GQLField -> GQLType) total = 1343",
+    "category": "graphql_schema",
+    "query": "MATCH (g:GQLField)-[:RETURNS]->(t:GQLType) RETURN count(*) AS total",
+    "expected": 1343,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-121",
+    "description": "GQLField otas ACCEPTS input type OtasFilter",
+    "category": "graphql_schema",
+    "query": "MATCH (g:GQLField {name: 'otas'})-[:ACCEPTS]->(t:GQLType) RETURN t.name",
+    "expected": "OtasFilter",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-122",
+    "description": "GQLField devices ACCEPTS input type DeviceFilter",
+    "category": "graphql_schema",
+    "query": "MATCH (g:GQLField {name: 'devices', operation: 'query'})-[:ACCEPTS]->(t:GQLType) RETURN t.name",
+    "expected": "DeviceFilter",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-123",
+    "description": "GQLField otas RETURNS GQLType Ota",
+    "category": "graphql_schema",
+    "query": "MATCH (g:GQLField {name: 'otas'})-[:RETURNS]->(t:GQLType) RETURN t.name",
+    "expected": "Ota",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-124",
+    "description": "deviceHistories ACCEPTS DeviceHistoryFilter",
+    "category": "graphql_schema",
+    "query": "MATCH (g:GQLField {name: 'deviceHistories'})-[:ACCEPTS]->(t:GQLType) RETURN t.name",
+    "expected": "DeviceHistoryFilter",
+    "match_mode": "exact",
+    "repo": "btcy-biocare-backend-device_management_api"
+  },
+  {
+    "id": "TC-125",
+    "description": "GQLFields that have ACCEPTS (have input args) = 356",
+    "category": "graphql_schema",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->() RETURN count(DISTINCT g) AS total",
+    "expected": 356,
+    "match_mode": "gte",
+    "repo": null
+  },
+  {
+    "id": "TC-126",
+    "description": "GQLFields that have RETURNS (typed output) = 1343",
+    "category": "graphql_schema",
+    "query": "MATCH (g:GQLField)-[:RETURNS]->() RETURN count(DISTINCT g) AS total",
+    "expected": 1343,
+    "match_mode": "gte",
+    "repo": null
+  },
+  {
+    "id": "TC-127",
+    "description": "FIELD_OF: GQLField belongs to GQLType OtasFilter has deviceModel",
+    "category": "graphql_schema",
+    "query": "MATCH (g:GQLField)-[:FIELD_OF]->(t:GQLType {name: 'OtasFilter'}) RETURN g.name",
+    "expected": "deviceModel",
+    "match_mode": "contains",
+    "repo": null
+  },
+  {
+    "id": "TC-128",
+    "description": "countBiocareDevice ACCEPTS CountBiocareDeviceFilter",
+    "category": "graphql_schema",
+    "query": "MATCH (g:GQLField {name: 'countBiocareDevice'})-[:ACCEPTS]->(t:GQLType) RETURN t.name",
+    "expected": "CountBiocareDeviceFilter",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-129",
+    "description": "Loaders in sales_api = 41 (top repo by loader count)",
+    "category": "loader_detail",
+    "query": "MATCH (l:Loader) WHERE l.repo = 'btcy-bioflux-backend-sales_api' RETURN count(l) AS total",
+    "expected": 41,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-sales_api"
+  },
+  {
+    "id": "TC-130",
+    "description": "Loaders in call_center_api = 14",
+    "category": "loader_detail",
+    "query": "MATCH (l:Loader) WHERE l.repo = 'btcy-bioflux-backend-call_center_api' RETURN count(l) AS total",
+    "expected": 14,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-call_center_api"
+  },
+  {
+    "id": "TC-131",
+    "description": "Loaders in study_api = 11",
+    "category": "loader_detail",
+    "query": "MATCH (l:Loader) WHERE l.repo = 'btcy-bioflux-backend-study_api' RETURN count(l) AS total",
+    "expected": 11,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-132",
+    "description": "Loaders in common_reference = 11",
+    "category": "loader_detail",
+    "query": "MATCH (l:Loader) WHERE l.repo = 'btcy-bioflux-backend-common_reference' RETURN count(l) AS total",
+    "expected": 11,
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-common_reference"
+  },
+  {
+    "id": "TC-133",
+    "description": "Loader callCenterQaGroupsByFacilityGroup backed by batchCallCenterQaGroupsByFacilityGroup",
+    "category": "loader_detail",
+    "query": "MATCH (l:Loader {name: 'callCenterQaGroupsByFacilityGroup'})-[:BACKED_BY]->(fn:Function) RETURN fn.name",
+    "expected": "batchCallCenterQaGroupsByFacilityGroup",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-134",
+    "description": "Loader user in admin_api backed by batchUsers",
+    "category": "loader_detail",
+    "query": "MATCH (l:Loader {name: 'user', repo: 'btcy-bioflux-backend-admin_api'})-[:BACKED_BY]->(fn:Function) RETURN fn.name",
+    "expected": "batchUsers",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-135",
+    "description": "Loader aiReport backed by batchAIReport",
+    "category": "loader_detail",
+    "query": "MATCH (l:Loader {name: 'aiReport'})-[:BACKED_BY]->(fn:Function) RETURN fn.name",
+    "expected": "batchAIReport",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-136",
+    "description": "Loader shipmentLabel backed by batchShipmentLabels",
+    "category": "loader_detail",
+    "query": "MATCH (l:Loader {name: 'shipmentLabel'})-[:BACKED_BY]->(fn:Function) RETURN fn.name",
+    "expected": "batchShipmentLabels",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-137",
+    "description": "Loader studyProfile backed by batchHolterProfileByStudy",
+    "category": "loader_detail",
+    "query": "MATCH (l:Loader {name: 'studyProfile'})-[:BACKED_BY]->(fn:Function) RETURN fn.name",
+    "expected": "batchHolterProfileByStudy",
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-138",
+    "description": "Loader callCenterGroup backed by batchCallCenterGroup",
+    "category": "loader_detail",
+    "query": "MATCH (l:Loader {name: 'callCenterGroup', repo: 'btcy-bioflux-backend-admin_api'})-[:BACKED_BY]->(fn:Function) RETURN fn.name",
+    "expected": "batchCallCenterGroup",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-139",
+    "description": "Loaders with full BACKED_BY chain (all 124 have batch fn)",
+    "category": "loader_detail",
+    "query": "MATCH (l:Loader)-[:BACKED_BY]->(fn:Function) RETURN count(DISTINCT l) AS total",
+    "expected": 124,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-140",
+    "description": "Unique functions that have USES_LOADER + BACKED_BY full chain = 148",
+    "category": "loader_detail",
+    "query": "MATCH (fn:Function)-[:USES_LOADER]->(l:Loader)-[:BACKED_BY]->(batch:Function) RETURN count(DISTINCT fn) AS total",
+    "expected": 148,
+    "match_mode": "exact",
+    "repo": null
+  },
+  {
+    "id": "TC-141",
+    "description": "resolveCallCenterQaGroups: loader chain ends at batchCallCenterQaGroupsByFacilityGroup",
+    "category": "loader_detail",
+    "query": "MATCH (fn:Function {name: 'resolveCallCenterQaGroups'})-[:USES_LOADER]->(l:Loader)-[:BACKED_BY]->(batch:Function) RETURN batch.name",
+    "expected": "batchCallCenterQaGroupsByFacilityGroup",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-142",
+    "description": "resolveAiReport: loader chain ends at batchAIReport",
+    "category": "loader_detail",
+    "query": "MATCH (fn:Function {name: 'resolveAiReport'})-[:USES_LOADER]->(l:Loader)-[:BACKED_BY]->(batch:Function) RETURN batch.name",
+    "expected": "batchAIReport",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-ai_api"
+  },
+  {
+    "id": "TC-143",
+    "description": "resolveHolterProfile: loader chain ends at batchHolterProfileByStudy",
+    "category": "loader_detail",
+    "query": "MATCH (fn:Function {name: 'resolveHolterProfile'})-[:USES_LOADER]->(l:Loader)-[:BACKED_BY]->(batch:Function) RETURN batch.name",
+    "expected": "batchHolterProfileByStudy",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-ai_api"
+  },
+  {
+    "id": "TC-144",
+    "description": "__resolveReference in admin_api uses loader user backed by batchUsers",
+    "category": "loader_detail",
+    "query": "MATCH (fn:Function {name: '__resolveReference', repo: 'btcy-bioflux-backend-admin_api'})-[:USES_LOADER]->(l:Loader {name: 'user'})-[:BACKED_BY]->(batch:Function) RETURN batch.name",
+    "expected": "batchUsers",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-145",
+    "description": "API: query.devices resolver = devices fn in device_management_api",
+    "category": "api_resolver_map",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {name:'devices', operation:'query'}) RETURN fn.name, fn.repo",
+    "expected": [
+      "devices",
+      "btcy-biocare-backend-device_management_api"
+    ],
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-146",
+    "description": "API: query.otas resolver = otas fn in device_management_api",
+    "category": "api_resolver_map",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {name:'otas', operation:'query'}) RETURN fn.name",
+    "expected": "otas",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-147",
+    "description": "API: mutation.createOta resolver = createOta fn in device_management_api",
+    "category": "api_resolver_map",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {name:'createOta', operation:'mutation'}) RETURN fn.name",
+    "expected": "createOta",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-148",
+    "description": "API: mutation.updateDevice resolver = updateDevice fn in device_management_api",
+    "category": "api_resolver_map",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {name:'updateDevice', operation:'mutation'}) RETURN fn.name",
+    "expected": "updateDevice",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-149",
+    "description": "API: mutation.deleteOta resolver = deleteOta fn in device_management_api",
+    "category": "api_resolver_map",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {name:'deleteOta', operation:'mutation'}) RETURN fn.name",
+    "expected": "deleteOta",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-150",
+    "description": "API: query.biokitDevices resolver = getBiokitDevices fn",
+    "category": "api_resolver_map",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {name:'biokitDevices', operation:'query'}) RETURN fn.name",
+    "expected": "getBiokitDevices",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-151",
+    "description": "API: query.latestOta resolver = latestOta fn",
+    "category": "api_resolver_map",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {name:'latestOta', operation:'query'}) RETURN fn.name",
+    "expected": "latestOta",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-152",
+    "description": "API: query.deviceHistories resolver = deviceHistories fn",
+    "category": "api_resolver_map",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {name:'deviceHistories', operation:'query'}) RETURN fn.name",
+    "expected": "deviceHistories",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-153",
+    "description": "API: query.flaggedStudies resolver = flaggedStudies fn in study_api",
+    "category": "api_resolver_map",
+    "repo": "btcy-bioflux-backend-study_api",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {name:'flaggedStudies', operation:'query'}) RETURN fn.name",
+    "expected": "flaggedStudies",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-154",
+    "description": "API: mutation.createTicketComment resolver = createTicketComment fn in support_api",
+    "category": "api_resolver_map",
+    "repo": "btcy-bioflux-backend-support_api",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {name:'createTicketComment', operation:'mutation'}) RETURN fn.name",
+    "expected": "createTicketComment",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-155",
+    "description": "API: mutation.completeDeviceTransfer resolver in support_api",
+    "category": "api_resolver_map",
+    "repo": "btcy-bioflux-backend-support_api",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {name:'completeDeviceTransfer', operation:'mutation'}) RETURN fn.name",
+    "expected": "completeDeviceTransfer",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-156",
+    "description": "API: query.studyLogs resolver in study_api",
+    "category": "api_resolver_map",
+    "repo": "btcy-bioflux-backend-study_api",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {name:'studyLogs', operation:'query'}) RETURN fn.name",
+    "expected": "studyLogs",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-157",
+    "description": "API: mutation.updateDeviceFirmware resolver = updateDeviceFirmware fn",
+    "category": "api_resolver_map",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {name:'updateDeviceFirmware', operation:'mutation'}) RETURN fn.name",
+    "expected": "updateDeviceFirmware",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-158",
+    "description": "API: query.searchUsersByEmail resolver in device_management_api",
+    "category": "api_resolver_map",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {name:'searchUsersByEmail', operation:'query'}) RETURN fn.name",
+    "expected": "searchUsersByEmail",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-159",
+    "description": "API: field canUpdateFirmware resolver = resolveCanUpdateFirmware",
+    "category": "api_resolver_map",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {name:'canUpdateFirmware'}) RETURN fn.name",
+    "expected": "resolveCanUpdateFirmware",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-160",
+    "description": "API: each query field has exactly 1 resolver (no field has 2+ resolvers)",
+    "category": "api_resolver_map",
+    "repo": null,
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField {operation:'query'}) WITH g, count(fn) AS cnt WHERE cnt > 1 RETURN count(g) AS ambiguous",
+    "expected": 0,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-161",
+    "description": "Impact: handleGraphqlError direct callers = 68",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-study_api",
+    "query": "MATCH (caller:Function)-[:CALLS]->(fn:Function {name:'handleGraphqlError'}) RETURN count(DISTINCT caller) AS direct",
+    "expected": 68,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-162",
+    "description": "Impact: handleGraphqlError indirect callers depth 2-5 = 5",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-study_api",
+    "query": "MATCH (caller:Function)-[:CALLS*2..5]->(fn:Function {name:'handleGraphqlError'}) RETURN count(DISTINCT caller) AS indirect",
+    "expected": 5,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-163",
+    "description": "Impact: handleGraphqlError total affected (direct+indirect) >= 68",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-study_api",
+    "query": "MATCH (caller:Function)-[:CALLS*1..5]->(fn:Function {name:'handleGraphqlError'}) RETURN count(DISTINCT caller) AS total_affected",
+    "expected": 68,
+    "match_mode": "gte"
+  },
+  {
+    "id": "TC-164",
+    "description": "Impact: notifySocketioClients direct callers = 113",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-call_center_api",
+    "query": "MATCH (caller:Function)-[:CALLS]->(fn:Function {name:'notifySocketioClients'}) RETURN count(DISTINCT caller) AS direct",
+    "expected": 113,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-165",
+    "description": "Impact: notifySocketioClients indirect callers depth 2-5 = 206",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-call_center_api",
+    "query": "MATCH (caller:Function)-[:CALLS*2..5]->(fn:Function {name:'notifySocketioClients'}) RETURN count(DISTINCT caller) AS indirect",
+    "expected": 206,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-166",
+    "description": "Impact: notifySocketioClients total affected depth 1-5 = 314",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-call_center_api",
+    "query": "MATCH (caller:Function)-[:CALLS*1..5]->(fn:Function {name:'notifySocketioClients'}) RETURN count(DISTINCT caller) AS total_affected",
+    "expected": 314,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-167",
+    "description": "Impact: sendEmail direct callers = 52",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-support_api",
+    "query": "MATCH (caller:Function)-[:CALLS]->(fn:Function {name:'sendEmail'}) RETURN count(DISTINCT caller) AS direct",
+    "expected": 52,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-168",
+    "description": "Impact: sendEmail indirect callers depth 2-5 = 87",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-support_api",
+    "query": "MATCH (caller:Function)-[:CALLS*2..5]->(fn:Function {name:'sendEmail'}) RETURN count(DISTINCT caller) AS indirect",
+    "expected": 87,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-169",
+    "description": "Impact: assignAuditPayload direct callers = 43",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-support_api",
+    "query": "MATCH (caller:Function)-[:CALLS]->(fn:Function {name:'assignAuditPayload'}) RETURN count(DISTINCT caller) AS direct",
+    "expected": 43,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-170",
+    "description": "Impact: assignAuditPayload indirect callers depth 2-5 = 3",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-support_api",
+    "query": "MATCH (caller:Function)-[:CALLS*2..5]->(fn:Function {name:'assignAuditPayload'}) RETURN count(DISTINCT caller) AS indirect",
+    "expected": 3,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-171",
+    "description": "Impact: triggerStudyLog direct callers = 24",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-study_api",
+    "query": "MATCH (caller:Function)-[:CALLS]->(fn:Function {name:'triggerStudyLog'}) RETURN count(DISTINCT caller) AS direct",
+    "expected": 24,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-172",
+    "description": "Impact: triggerStudyLog indirect callers depth 2-5 = 11",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-study_api",
+    "query": "MATCH (caller:Function)-[:CALLS*2..5]->(fn:Function {name:'triggerStudyLog'}) RETURN count(DISTINCT caller) AS indirect",
+    "expected": 11,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-173",
+    "description": "Impact: deviceWriteLog direct callers = 40",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-tcp_collector",
+    "query": "MATCH (caller:Function)-[:CALLS]->(fn:Function {name:'deviceWriteLog'}) RETURN count(DISTINCT caller) AS direct",
+    "expected": 40,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-174",
+    "description": "Impact: deviceWriteLog indirect callers depth 2-5 = 23",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-tcp_collector",
+    "query": "MATCH (caller:Function)-[:CALLS*2..5]->(fn:Function {name:'deviceWriteLog'}) RETURN count(DISTINCT caller) AS indirect",
+    "expected": 23,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-175",
+    "description": "Impact: checkRoleUser direct callers = 24",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-support_api",
+    "query": "MATCH (caller:Function)-[:CALLS]->(fn:Function {name:'checkRoleUser'}) RETURN count(DISTINCT caller) AS direct",
+    "expected": 24,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-176",
+    "description": "Impact: checkRoleUser indirect callers depth 2-5 = 32",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-support_api",
+    "query": "MATCH (caller:Function)-[:CALLS*2..5]->(fn:Function {name:'checkRoleUser'}) RETURN count(DISTINCT caller) AS indirect",
+    "expected": 32,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-177",
+    "description": "Impact: formatGraphQLTypeResponse direct callers = 38",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-support_api",
+    "query": "MATCH (caller:Function)-[:CALLS]->(fn:Function {name:'formatGraphQLTypeResponse'}) RETURN count(DISTINCT caller) AS direct",
+    "expected": 38,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-178",
+    "description": "Impact: formatGraphQLTypeResponse indirect callers depth 2-5 = 12",
+    "category": "impact_analysis",
+    "repo": "btcy-bioflux-backend-support_api",
+    "query": "MATCH (caller:Function)-[:CALLS*2..5]->(fn:Function {name:'formatGraphQLTypeResponse'}) RETURN count(DISTINCT caller) AS indirect",
+    "expected": 12,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-179",
+    "description": "Impact: most impactful non-auditor function by direct callers = handleGraphqlError",
+    "category": "impact_analysis",
+    "repo": null,
+    "query": "MATCH (fn:Function)<-[:CALLS]-(caller) WHERE fn.repo <> 'btcy-bioflux-backend-auditor' WITH fn, count(DISTINCT caller) AS cnt ORDER BY cnt DESC LIMIT 1 RETURN fn.name",
+    "expected": "handleGraphqlError",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-180",
+    "description": "Impact: functions with total affected (depth 1-5) > 100 exist",
+    "category": "impact_analysis",
+    "repo": null,
+    "query": "MATCH (fn:Function)<-[:CALLS*1..5]-(caller) WITH fn, count(DISTINCT caller) AS cnt WHERE cnt > 100 RETURN count(DISTINCT fn) AS high_impact_fns",
+    "expected": 1,
+    "match_mode": "gte"
+  },
+  {
+    "id": "TC-181",
+    "description": "Type impact: OtasFilter used as input by 1 query API",
+    "category": "resolve_type_impact",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'OtasFilter'}) WHERE g.operation IN ['query','mutation'] RETURN count(g) AS affected_apis",
+    "expected": 1,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-182",
+    "description": "Type impact: OtasFilter input used by query.otas",
+    "category": "resolve_type_impact",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'OtasFilter'}) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "otas",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-183",
+    "description": "Type impact: DeviceFilter used as input by 2 query APIs",
+    "category": "resolve_type_impact",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'DeviceFilter'}) WHERE g.operation IN ['query','mutation'] RETURN count(g) AS affected_apis",
+    "expected": 2,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-184",
+    "description": "Type impact: DeviceFilter affects query.devices",
+    "category": "resolve_type_impact",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'DeviceFilter'}) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "devices",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-185",
+    "description": "Type impact: UserFilter used as input by 4 query APIs",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-admin_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'UserFilter'}) WHERE g.operation IN ['query','mutation'] RETURN count(g) AS affected_apis",
+    "expected": 4,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-186",
+    "description": "Type impact: UserFilter affects query.users",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-admin_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'UserFilter'}) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "users",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-187",
+    "description": "Type impact: UserFilter affects query.unassignedUsers",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-admin_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'UserFilter'}) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "unassignedUsers",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-188",
+    "description": "Type impact: HolterEventsFilter used as input by 4 query APIs",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-ai_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'HolterEventsFilter'}) WHERE g.operation IN ['query','mutation'] RETURN count(g) AS affected_apis",
+    "expected": 4,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-189",
+    "description": "Type impact: HolterEventsFilter affects query.holterEvents",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-ai_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'HolterEventsFilter'}) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "holterEvents",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-190",
+    "description": "Type impact: UpdateEventInput used as input by 3 mutations",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-call_center_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'UpdateEventInput'}) WHERE g.operation IN ['query','mutation'] RETURN count(g) AS affected_apis",
+    "expected": 3,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-191",
+    "description": "Type impact: UpdateEventInput affects mutation.updateEvent",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-call_center_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'UpdateEventInput'}) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "updateEvent",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-192",
+    "description": "Type impact: UpdateEventInput affects mutation.closeEvent",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-call_center_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'UpdateEventInput'}) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "closeEvent",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-193",
+    "description": "Type impact: LiveEcgInput used as input by 3 query APIs",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-study_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'LiveEcgInput'}) WHERE g.operation IN ['query','mutation'] RETURN count(g) AS affected_apis",
+    "expected": 3,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-194",
+    "description": "Type impact: LiveEcgInput affects query.pushStartEcgStreaming",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-study_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'LiveEcgInput'}) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "pushStartEcgStreaming",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-195",
+    "description": "Type impact: LiveEcgInput affects query.checkDeviceConnection",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-study_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'LiveEcgInput'}) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "checkDeviceConnection",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-196",
+    "description": "Type impact: NotificationsFilterInput used as input by 3 query APIs",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-common_reference",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'NotificationsFilterInput'}) WHERE g.operation IN ['query','mutation'] RETURN count(g) AS affected_apis",
+    "expected": 3,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-197",
+    "description": "Type impact: NotificationsFilterInput affects query.notifications",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-common_reference",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType {name:'NotificationsFilterInput'}) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "notifications",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-198",
+    "description": "Type impact: GQLType Study returned by 10 query APIs",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-study_api",
+    "query": "MATCH (g:GQLField)-[:RETURNS]->(t:GQLType {name:'Study'}) WHERE g.operation IN ['query','mutation'] RETURN count(g) AS affected_apis",
+    "expected": 10,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-199",
+    "description": "Type impact: Study return type affects query.flaggedStudies",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-study_api",
+    "query": "MATCH (g:GQLField)-[:RETURNS]->(t:GQLType {name:'Study'}) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "flaggedStudies",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-200",
+    "description": "Type impact: Study return type affects query.studies",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-study_api",
+    "query": "MATCH (g:GQLField)-[:RETURNS]->(t:GQLType {name:'Study'}) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "studies",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-201",
+    "description": "Type impact: MutationResponse returned by >= 60 mutation APIs (cross-repo)",
+    "category": "resolve_type_impact",
+    "repo": null,
+    "query": "MATCH (g:GQLField)-[:RETURNS]->(t:GQLType {name:'MutationResponse'}) WHERE g.operation IN ['query','mutation'] RETURN count(g) AS affected_apis",
+    "expected": 60,
+    "match_mode": "gte"
+  },
+  {
+    "id": "TC-202",
+    "description": "Type impact: MutationResponse in call_center_api returned by 26 APIs",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-call_center_api",
+    "query": "MATCH (g:GQLField)-[:RETURNS]->(t:GQLType {name:'MutationResponse', repo:'btcy-bioflux-backend-call_center_api'}) WHERE g.operation IN ['query','mutation'] RETURN count(g) AS affected_apis",
+    "expected": 26,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-203",
+    "description": "Type impact: MutationResponse in study_api returned by 25 APIs",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-study_api",
+    "query": "MATCH (g:GQLField)-[:RETURNS]->(t:GQLType {name:'MutationResponse', repo:'btcy-bioflux-backend-study_api'}) WHERE g.operation IN ['query','mutation'] RETURN count(g) AS affected_apis",
+    "expected": 25,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-204",
+    "description": "Type impact: UserFilter total API impact (ACCEPTS only) = 4",
+    "category": "resolve_type_impact",
+    "repo": "btcy-bioflux-backend-admin_api",
+    "query": "MATCH (g:GQLField)-[:ACCEPTS|RETURNS]->(t:GQLType {name:'UserFilter'}) WHERE g.operation IN ['query','mutation'] RETURN count(DISTINCT g) AS total_affected",
+    "expected": 4,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-205",
+    "description": "Type impact: GQLType with most API impact via ACCEPTS = UserFilter or HolterEventsFilter (4 each)",
+    "category": "resolve_type_impact",
+    "repo": null,
+    "query": "MATCH (g:GQLField)-[:ACCEPTS]->(t:GQLType) WHERE g.operation IN ['query','mutation'] WITH t, count(g) AS cnt ORDER BY cnt DESC LIMIT 1 RETURN cnt",
+    "expected": 4,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-206",
+    "description": "Resolver impact: update devices() resolver -> affects query.devices",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (fn:Function {name:'devices'})-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN g.name, g.operation",
+    "expected": "devices",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-207",
+    "description": "Resolver impact: update otas() resolver -> affects query.otas only",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (fn:Function {name:'otas'})-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN count(g) AS affected_apis",
+    "expected": 1,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-208",
+    "description": "Resolver impact: update completeDeviceTransfer() -> affects mutation.completeDeviceTransfer",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-bioflux-backend-support_api",
+    "query": "MATCH (fn:Function {name:'completeDeviceTransfer'})-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "completeDeviceTransfer",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-209",
+    "description": "Resolver impact: update flaggedStudies() -> affects query.flaggedStudies",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-bioflux-backend-study_api",
+    "query": "MATCH (fn:Function {name:'flaggedStudies'})-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "flaggedStudies",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-210",
+    "description": "Resolver impact: update holterRhythmEventsCount() -> 1 query API affected",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-bioflux-backend-ai_api",
+    "query": "MATCH (fn:Function {name:'holterRhythmEventsCount'})-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "holterRhythmEventsCount",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-211",
+    "description": "Resolver impact: update getDeviceHistories impl -> affects query.deviceHistories via DELEGATES_TO",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (resolver:Function)-[:DELEGATES_TO]->(impl:Function {name:'getDeviceHistories'}), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "deviceHistories",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-212",
+    "description": "Resolver impact: update listDevice impl -> affects query.devices via DELEGATES_TO",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (resolver:Function)-[:DELEGATES_TO]->(impl:Function {name:'listDevice'}), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "devices",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-213",
+    "description": "Resolver impact: update listOtas impl -> affects query.otas via DELEGATES_TO",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (resolver:Function)-[:DELEGATES_TO]->(impl:Function {name:'listOtas'}), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "otas",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-214",
+    "description": "Resolver impact: update getLatestOta impl -> affects query.latestOta via DELEGATES_TO",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (resolver:Function)-[:DELEGATES_TO]->(impl:Function {name:'getLatestOta'}), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "latestOta",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-215",
+    "description": "Resolver impact: update getDevice impl -> affects query.device via DELEGATES_TO",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (resolver:Function)-[:DELEGATES_TO]->(impl:Function {name:'getDevice'}), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "device",
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-216",
+    "description": "Resolver impact: update createDeviceHistory (support_api) -> 15 mutation APIs affected",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-bioflux-backend-support_api",
+    "query": "MATCH (resolver:Function)-[:DELEGATES_TO]->(impl:Function {name:'createDeviceHistory', repo:'btcy-bioflux-backend-support_api'}), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN count(DISTINCT g) AS affected_apis",
+    "expected": 15,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-217",
+    "description": "Resolver impact: createDeviceHistory (support_api) affects mutation.completeDeviceTransfer",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-bioflux-backend-support_api",
+    "query": "MATCH (resolver:Function)-[:DELEGATES_TO]->(impl:Function {name:'createDeviceHistory', repo:'btcy-bioflux-backend-support_api'}), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "completeDeviceTransfer",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-218",
+    "description": "Resolver impact: createDeviceHistory (support_api) affects mutation.createRmaTicket",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-bioflux-backend-support_api",
+    "query": "MATCH (resolver:Function)-[:DELEGATES_TO]->(impl:Function {name:'createDeviceHistory', repo:'btcy-bioflux-backend-support_api'}), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "createRmaTicket",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-219",
+    "description": "Resolver impact: update assignCurrentDevices (device_management) -> 4 mutation APIs",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (resolver:Function)-[:DELEGATES_TO]->(impl:Function {name:'assignCurrentDevices', repo:'btcy-biocare-backend-device_management_api'}), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN count(DISTINCT g) AS affected_apis",
+    "expected": 4,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-220",
+    "description": "Resolver impact: assignCurrentDevices (device_management) affects mutation.updateDevice",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (resolver:Function)-[:DELEGATES_TO]->(impl:Function {name:'assignCurrentDevices', repo:'btcy-biocare-backend-device_management_api'}), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "updateDevice",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-221",
+    "description": "Resolver impact: assignCurrentDevices (device_management) affects mutation.createDevice",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-biocare-backend-device_management_api",
+    "query": "MATCH (resolver:Function)-[:DELEGATES_TO]->(impl:Function {name:'assignCurrentDevices', repo:'btcy-biocare-backend-device_management_api'}), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "createDevice",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-222",
+    "description": "Resolver impact: update isCountRateLimited helper -> 4 query APIs affected",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-bioflux-backend-ai_api",
+    "query": "MATCH (resolver:Function)-[:CALLS]->(fn:Function {name:'isCountRateLimited'}), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN count(DISTINCT g) AS affected_apis",
+    "expected": 4,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-223",
+    "description": "Resolver impact: isCountRateLimited helper affects query.holterEvents",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-bioflux-backend-ai_api",
+    "query": "MATCH (resolver:Function)-[:CALLS]->(fn:Function {name:'isCountRateLimited'}), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "holterRhythmEventsCount",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-224",
+    "description": "Resolver impact: useGraphqlHandler helper affects query.getActiveTimeReport",
+    "category": "resolver_to_api_impact",
+    "repo": null,
+    "query": "MATCH (resolver:Function)-[:CALLS*1..2]->(fn:Function {name:'useGraphqlHandler'}), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN g.name",
+    "expected": "getActiveTimeReport",
+    "match_mode": "contains"
+  },
+  {
+    "id": "TC-225",
+    "description": "Resolver impact: total impl fns (via DELEGATES_TO) mapping to at least 1 API = 540",
+    "category": "resolver_to_api_impact",
+    "repo": null,
+    "query": "MATCH (resolver:Function)-[:DELEGATES_TO]->(impl:Function), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] RETURN count(DISTINCT impl) AS total_impls",
+    "expected": 540,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-226",
+    "description": "Resolver impact: impl with highest API coverage = createDeviceHistory or assignCurrentDevices (15 APIs in support_api)",
+    "category": "resolver_to_api_impact",
+    "repo": "btcy-bioflux-backend-support_api",
+    "query": "MATCH (resolver:Function)-[:DELEGATES_TO]->(impl:Function), (resolver)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] WITH impl, count(DISTINCT g) AS cnt ORDER BY cnt DESC LIMIT 1 RETURN cnt",
+    "expected": 15,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-227",
+    "description": "Resolver impact: each resolver fn resolves exactly 1 API (no resolver covers 2+ APIs)",
+    "category": "resolver_to_api_impact",
+    "repo": null,
+    "query": "MATCH (fn:Function)-[:RESOLVES]->(g:GQLField) WHERE g.operation IN ['query','mutation'] WITH fn, count(g) AS cnt WHERE cnt > 1 RETURN count(fn) AS resolvers_with_multiple_apis",
+    "expected": 0,
+    "match_mode": "exact"
+  },
+  {
+    "id": "TC-228",
+    "description": "Mutation createShipmentOrder exists in support_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'createShipmentOrder', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "createShipmentOrder",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-229",
+    "description": "Mutation createRmaTicket exists in support_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'createRmaTicket', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "createRmaTicket",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-230",
+    "description": "Mutation approveRmaTicket exists in support_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'approveRmaTicket', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "approveRmaTicket",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-231",
+    "description": "Mutation completeRmaTicket exists in support_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'completeRmaTicket', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "completeRmaTicket",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-232",
+    "description": "Mutation createDeviceTransfer exists in support_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'createDeviceTransfer', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "createDeviceTransfer",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-233",
+    "description": "Mutation createTicketComment exists in support_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'createTicketComment', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "createTicketComment",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-234",
+    "description": "Mutation exportRmaReport exists in support_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'exportRmaReport', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "exportRmaReport",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-235",
+    "description": "Mutation upsertTravelerForm exists in support_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'upsertTravelerForm', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "upsertTravelerForm",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-236",
+    "description": "Mutation createFacility exists in admin_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'createFacility', repo: 'btcy-bioflux-backend-admin_api'}) RETURN fn.name",
+    "expected": "createFacility",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-237",
+    "description": "Mutation createUser exists in admin_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'createUser', repo: 'btcy-bioflux-backend-admin_api'}) RETURN fn.name",
+    "expected": "createUser",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-238",
+    "description": "Mutation deleteFAQ exists in admin_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'deleteFAQ', repo: 'btcy-bioflux-backend-admin_api'}) RETURN fn.name",
+    "expected": "deleteFAQ",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-239",
+    "description": "Mutation adminResetPassword exists in admin_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'adminResetPassword', repo: 'btcy-bioflux-backend-admin_api'}) RETURN fn.name",
+    "expected": "adminResetPassword",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-240",
+    "description": "Mutation createCallCenterGroup exists in admin_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'createCallCenterGroup', repo: 'btcy-bioflux-backend-admin_api'}) RETURN fn.name",
+    "expected": "createCallCenterGroup",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-241",
+    "description": "Mutation createStudy exists in study_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'createStudy', repo: 'btcy-bioflux-backend-study_api'}) RETURN fn.name",
+    "expected": "createStudy",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-242",
+    "description": "Mutation startStudy exists in study_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'startStudy', repo: 'btcy-bioflux-backend-study_api'}) RETURN fn.name",
+    "expected": "startStudy",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-243",
+    "description": "Mutation stopStudy exists in study_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'stopStudy', repo: 'btcy-bioflux-backend-study_api'}) RETURN fn.name",
+    "expected": "stopStudy",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-244",
+    "description": "Mutation cancelStudy exists in study_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'cancelStudy', repo: 'btcy-bioflux-backend-study_api'}) RETURN fn.name",
+    "expected": "cancelStudy",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-245",
+    "description": "Mutation deleteStudies exists in study_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'deleteStudies', repo: 'btcy-bioflux-backend-study_api'}) RETURN fn.name",
+    "expected": "deleteStudies",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-246",
+    "description": "Mutation assignDeviceToStudy exists in study_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'assignDeviceToStudy', repo: 'btcy-bioflux-backend-study_api'}) RETURN fn.name",
+    "expected": "assignDeviceToStudy",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-247",
+    "description": "Mutation markReportAsAcknowledged exists in clinic_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'markReportAsAcknowledged', repo: 'btcy-bioflux-backend-clinic_api'}) RETURN fn.name",
+    "expected": "markReportAsAcknowledged",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-clinic_api"
+  },
+  {
+    "id": "TC-248",
+    "description": "Mutation saveSignature exists in clinic_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'saveSignature', repo: 'btcy-bioflux-backend-clinic_api'}) RETURN fn.name",
+    "expected": "saveSignature",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-clinic_api"
+  },
+  {
+    "id": "TC-249",
+    "description": "Query facilities exists in admin_api",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {name: 'facilities', repo: 'btcy-bioflux-backend-admin_api'}) RETURN fn.name",
+    "expected": "facilities",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-250",
+    "description": "Query users exists in admin_api",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {name: 'users', repo: 'btcy-bioflux-backend-admin_api'}) RETURN fn.name",
+    "expected": "users",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-251",
+    "description": "Query facilityGroups exists in admin_api",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {name: 'facilityGroups', repo: 'btcy-bioflux-backend-admin_api'}) RETURN fn.name",
+    "expected": "facilityGroups",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-252",
+    "description": "Query callCenterGroups exists in admin_api",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {name: 'callCenterGroups', repo: 'btcy-bioflux-backend-admin_api'}) RETURN fn.name",
+    "expected": "callCenterGroups",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-253",
+    "description": "Query RmaTickets exists in support_api",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {name: 'RmaTickets', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "RmaTickets",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-254",
+    "description": "Query patientTickets exists in support_api",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {name: 'patientTickets', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "patientTickets",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-255",
+    "description": "Query deviceTransfers exists in support_api",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {name: 'deviceTransfers', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "deviceTransfers",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-256",
+    "description": "Query shipmentLabels exists in support_api",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {name: 'shipmentLabels', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "shipmentLabels",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-257",
+    "description": "Query study exists in study_api",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {name: 'study', repo: 'btcy-bioflux-backend-study_api'}) RETURN fn.name",
+    "expected": "study",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-258",
+    "description": "Query studies exists in study_api",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {name: 'studies', repo: 'btcy-bioflux-backend-study_api'}) RETURN fn.name",
+    "expected": "studies",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-259",
+    "description": "Query flaggedStudies exists in study_api",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {name: 'flaggedStudies', repo: 'btcy-bioflux-backend-study_api'}) RETURN fn.name",
+    "expected": "flaggedStudies",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-260",
+    "description": "Query clinicStudies exists in study_api",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {name: 'clinicStudies', repo: 'btcy-bioflux-backend-study_api'}) RETURN fn.name",
+    "expected": "clinicStudies",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-261",
+    "description": "Query events exists in call_center_api",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {name: 'events', repo: 'btcy-bioflux-backend-call_center_api'}) RETURN fn.name",
+    "expected": "events",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-call_center_api"
+  },
+  {
+    "id": "TC-262",
+    "description": "Query reportReminders exists in call_center_api",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {name: 'reportReminders', repo: 'btcy-bioflux-backend-call_center_api'}) RETURN fn.name",
+    "expected": "reportReminders",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-call_center_api"
+  },
+  {
+    "id": "TC-263",
+    "description": "Resolver resolveRmaTickets exists in support_api",
+    "category": "resolver_functions",
+    "query": "MATCH (fn:Function {name: 'resolveRmaTickets', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "resolveRmaTickets",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-264",
+    "description": "Resolver resolveDevice exists in support_api",
+    "category": "resolver_functions",
+    "query": "MATCH (fn:Function {name: 'resolveDevice', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "resolveDevice",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-265",
+    "description": "Resolver resolveTransaction exists in support_api",
+    "category": "resolver_functions",
+    "query": "MATCH (fn:Function {name: 'resolveTransaction', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "resolveTransaction",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-266",
+    "description": "Resolver resolveSenderInformation exists in support_api",
+    "category": "resolver_functions",
+    "query": "MATCH (fn:Function {name: 'resolveSenderInformation', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "resolveSenderInformation",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-267",
+    "description": "Resolver resolveInfo exists in study_api",
+    "category": "resolver_functions",
+    "query": "MATCH (fn:Function {name: 'resolveInfo', repo: 'btcy-bioflux-backend-study_api'}) RETURN fn.name",
+    "expected": "resolveInfo",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-268",
+    "description": "Resolver resolveDevice exists in study_api",
+    "category": "resolver_functions",
+    "query": "MATCH (fn:Function {name: 'resolveDevice', repo: 'btcy-bioflux-backend-study_api'}) RETURN fn.name",
+    "expected": "resolveDevice",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-269",
+    "description": "Resolver resolveReports exists in study_api",
+    "category": "resolver_functions",
+    "query": "MATCH (fn:Function {name: 'resolveReports', repo: 'btcy-bioflux-backend-study_api'}) RETURN fn.name",
+    "expected": "resolveReports",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-270",
+    "description": "Resolver resolveStudy exists in call_center_api",
+    "category": "resolver_functions",
+    "query": "MATCH (fn:Function {name: 'resolveStudy', repo: 'btcy-bioflux-backend-call_center_api'}) RETURN fn.name",
+    "expected": "resolveStudy",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-call_center_api"
+  },
+  {
+    "id": "TC-271",
+    "description": "Resolver resolveEventCount exists in call_center_api",
+    "category": "resolver_functions",
+    "query": "MATCH (fn:Function {name: 'resolveEventCount', repo: 'btcy-bioflux-backend-call_center_api'}) RETURN fn.name",
+    "expected": "resolveEventCount",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-call_center_api"
+  },
+  {
+    "id": "TC-272",
+    "description": "__resolveReference count in support_api >= 12",
+    "category": "resolver_functions",
+    "query": "MATCH (fn:Function {name: '__resolveReference', repo: 'btcy-bioflux-backend-support_api'}) RETURN count(fn) AS total",
+    "expected": 12,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-273",
+    "description": "__resolveReference count in study_api >= 3",
+    "category": "resolver_functions",
+    "query": "MATCH (fn:Function {name: '__resolveReference', repo: 'btcy-bioflux-backend-study_api'}) RETURN count(fn) AS total",
+    "expected": 3,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-274",
+    "description": "Util formatGraphQLTypeResponse exists in support_api",
+    "category": "util_functions",
+    "query": "MATCH (fn:Function {name: 'formatGraphQLTypeResponse', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "formatGraphQLTypeResponse",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-275",
+    "description": "Util buildStudyQuery exists in support_api",
+    "category": "util_functions",
+    "query": "MATCH (fn:Function {name: 'buildStudyQuery', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "buildStudyQuery",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-276",
+    "description": "Util checkRoleUser exists in support_api",
+    "category": "util_functions",
+    "query": "MATCH (fn:Function {name: 'checkRoleUser', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "checkRoleUser",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-277",
+    "description": "Util notifyRmaTicket exists in support_api",
+    "category": "util_functions",
+    "query": "MATCH (fn:Function {name: 'notifyRmaTicket', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "notifyRmaTicket",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-278",
+    "description": "Util getShipmentInfo exists in support_api",
+    "category": "util_functions",
+    "query": "MATCH (fn:Function {name: 'getShipmentInfo', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "getShipmentInfo",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-279",
+    "description": "Util updateShipmentAccessory exists in support_api",
+    "category": "util_functions",
+    "query": "MATCH (fn:Function {name: 'updateShipmentAccessory', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "updateShipmentAccessory",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-280",
+    "description": "Util getListDeviceId exists in support_api",
+    "category": "util_functions",
+    "query": "MATCH (fn:Function {name: 'getListDeviceId', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "getListDeviceId",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-281",
+    "description": "Util syncEcgLeadVersionToSmDevice exists in support_api",
+    "category": "util_functions",
+    "query": "MATCH (fn:Function {name: 'syncEcgLeadVersionToSmDevice', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "syncEcgLeadVersionToSmDevice",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-282",
+    "description": "createRmaTicket calls >= 1 function in support_api",
+    "category": "mutation_call_chain",
+    "query": "MATCH (fn:Function {name: 'createRmaTicket', repo: 'btcy-bioflux-backend-support_api'})-[:CALLS]->(callee:Function) RETURN count(callee) AS call_count",
+    "expected": 1,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-283",
+    "description": "createStudy calls >= 1 function in study_api",
+    "category": "mutation_call_chain",
+    "query": "MATCH (fn:Function {name: 'createStudy', repo: 'btcy-bioflux-backend-study_api'})-[:CALLS]->(callee:Function) RETURN count(callee) AS call_count",
+    "expected": 1,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-284",
+    "description": "createFacility calls >= 1 function in admin_api",
+    "category": "mutation_call_chain",
+    "query": "MATCH (fn:Function {name: 'createFacility', repo: 'btcy-bioflux-backend-admin_api'})-[:CALLS]->(callee:Function) RETURN count(callee) AS call_count",
+    "expected": 1,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-285",
+    "description": "Mutation functions in support_api (mutation.js) >= 40",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {repo: 'btcy-bioflux-backend-support_api'}) WHERE fn.file CONTAINS 'mutation' RETURN count(fn) AS total",
+    "expected": 40,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-286",
+    "description": "Mutation functions in admin_api >= 30",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {repo: 'btcy-bioflux-backend-admin_api'}) WHERE fn.file CONTAINS 'mutation' RETURN count(fn) AS total",
+    "expected": 30,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-admin_api"
+  },
+  {
+    "id": "TC-287",
+    "description": "Query functions in study_api >= 25",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {repo: 'btcy-bioflux-backend-study_api'}) WHERE fn.file CONTAINS 'query' RETURN count(fn) AS total",
+    "expected": 25,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-study_api"
+  },
+  {
+    "id": "TC-288",
+    "description": "Resolver functions in support_api (not mutation/query/index) >= 50",
+    "category": "resolver_functions",
+    "query": "MATCH (fn:Function {repo: 'btcy-bioflux-backend-support_api'}) WHERE fn.file CONTAINS '/resolvers/' AND NOT fn.file CONTAINS 'mutation' AND NOT fn.file CONTAINS 'query' AND NOT fn.file CONTAINS 'index' RETURN count(fn) AS total",
+    "expected": 50,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-289",
+    "description": "resolveRmaTickets RESOLVES >= 1 GQLField in support_api",
+    "category": "resolver_functions",
+    "query": "MATCH (fn:Function {name: 'resolveRmaTickets', repo: 'btcy-bioflux-backend-support_api'})-[:RESOLVES]->(g:GQLField) RETURN count(g) AS total",
+    "expected": 1,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-290",
+    "description": "resolveDevice RESOLVES >= 1 GQLField across all repos",
+    "category": "resolver_functions",
+    "query": "MATCH (fn:Function {name: 'resolveDevice'})-[:RESOLVES]->(g:GQLField) RETURN count(g) AS total",
+    "expected": 1,
+    "match_mode": "gte",
+    "repo": null
+  },
+  {
+    "id": "TC-291",
+    "description": "Mutation downloadInvoice exists in billing_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'downloadInvoice', repo: 'btcy-bioflux-backend-billing_api'}) RETURN fn.name",
+    "expected": "downloadInvoice",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-billing_api"
+  },
+  {
+    "id": "TC-292",
+    "description": "Query invoices exists in billing_api",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function {name: 'invoices', repo: 'btcy-bioflux-backend-billing_api'}) RETURN fn.name",
+    "expected": "invoices",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-billing_api"
+  },
+  {
+    "id": "TC-293",
+    "description": "formatGraphQLTypeResponse is called by >= 10 functions in support_api",
+    "category": "util_functions",
+    "query": "MATCH (fn:Function {name: 'formatGraphQLTypeResponse', repo: 'btcy-bioflux-backend-support_api'})<-[:CALLS]-(caller:Function) RETURN count(caller) AS total",
+    "expected": 10,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-294",
+    "description": "notifyRmaTicket is called by >= 2 functions in support_api",
+    "category": "util_functions",
+    "query": "MATCH (fn:Function {name: 'notifyRmaTicket', repo: 'btcy-bioflux-backend-support_api'})<-[:CALLS]-(caller:Function) RETURN count(caller) AS total",
+    "expected": 2,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-295",
+    "description": "checkRoleUser is called by >= 1 function in support_api",
+    "category": "util_functions",
+    "query": "MATCH (fn:Function {name: 'checkRoleUser', repo: 'btcy-bioflux-backend-support_api'})<-[:CALLS]-(caller:Function) RETURN count(caller) AS total",
+    "expected": 1,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-296",
+    "description": "Total mutation functions across all repos >= 100",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function) WHERE fn.file CONTAINS 'mutation' RETURN count(fn) AS total",
+    "expected": 100,
+    "match_mode": "gte",
+    "repo": null
+  },
+  {
+    "id": "TC-297",
+    "description": "Total query functions across all repos >= 150",
+    "category": "query_functions",
+    "query": "MATCH (fn:Function) WHERE fn.file CONTAINS '/query' RETURN count(fn) AS total",
+    "expected": 150,
+    "match_mode": "gte",
+    "repo": null
+  },
+  {
+    "id": "TC-298",
+    "description": "Total resolver functions in support_api resolvers/ >= 70",
+    "category": "resolver_functions",
+    "query": "MATCH (fn:Function {repo: 'btcy-bioflux-backend-support_api'}) WHERE fn.file CONTAINS '/resolvers/' RETURN count(fn) AS total",
+    "expected": 70,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-299",
+    "description": "Total util functions in support_api utils/ >= 50",
+    "category": "util_functions",
+    "query": "MATCH (fn:Function {repo: 'btcy-bioflux-backend-support_api'}) WHERE fn.file CONTAINS 'utils' RETURN count(fn) AS total",
+    "expected": 50,
+    "match_mode": "gte",
+    "repo": "btcy-bioflux-backend-support_api"
+  },
+  {
+    "id": "TC-300",
+    "description": "Mutation completeDeviceTransfer exists in support_api",
+    "category": "mutation_functions",
+    "query": "MATCH (fn:Function {name: 'completeDeviceTransfer', repo: 'btcy-bioflux-backend-support_api'}) RETURN fn.name",
+    "expected": "completeDeviceTransfer",
+    "match_mode": "exact",
+    "repo": "btcy-bioflux-backend-support_api"
+  }
+]
