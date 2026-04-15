@@ -120,6 +120,7 @@ def export_to_falkordb(
                 "line_start": node.line_start or 0,
                 "line_end": node.line_end or 0,
                 "is_test": bool(node.is_test),
+                "repo": store.db_path.parent.parent.name,
             }
             if node.parent_name:
                 props["parent_name"] = node.parent_name

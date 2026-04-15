@@ -10,89 +10,101 @@ Complete reference for all node kinds and edge relationship types in the code-re
 
 ### Code Structure Nodes (parser)
 
-| Kind | Ý nghĩa | Nguồn |
-|------|---------|-------|
-| `File` | Source file | Tất cả ngôn ngữ |
-| `Function` | Function / method / arrow fn / lambda | Tất cả ngôn ngữ |
-| `Class` | Class / struct / module definition | Tất cả ngôn ngữ |
-| `Test` | Test function (giống Function, `is_test=True`) | File trong test directory |
+| Kind       | Ý nghĩa                                        | Nguồn                     |
+| ---------- | ---------------------------------------------- | ------------------------- |
+| `File`     | Source file                                    | Tất cả ngôn ngữ           |
+| `Function` | Function / method / arrow fn / lambda          | Tất cả ngôn ngữ           |
+| `Class`    | Class / struct / module definition             | Tất cả ngôn ngữ           |
+| `Test`     | Test function (giống Function, `is_test=True`) | File trong test directory |
 
 ### GraphQL Nodes (graphql_extractor)
 
-| Kind | Ý nghĩa | Nguồn |
-|------|---------|-------|
-| `GQLType` | GraphQL type definition (Query, Mutation, Input, type, enum, interface, union, scalar) | `.schema.gql` |
-| `GQLField` | Field trên một GQLType | `.schema.gql` |
-| `GQLField` (synthetic) | Placeholder cho federation field không có trong schema local (`is_external=True`) | Được tạo khi emit `RESOLVES_EXTERNAL` |
-| `Loader` | DataLoader instance | `utils/loaders/index.js` |
+| Kind                   | Ý nghĩa                                                                                | Nguồn                                 |
+| ---------------------- | -------------------------------------------------------------------------------------- | ------------------------------------- |
+| `GQLType`              | GraphQL type definition (Query, Mutation, Input, type, enum, interface, union, scalar) | `.schema.gql`                         |
+| `GQLField`             | Field trên một GQLType                                                                 | `.schema.gql`                         |
+| `GQLField` (synthetic) | Placeholder cho federation field không có trong schema local (`is_external=True`)      | Được tạo khi emit `RESOLVES_EXTERNAL` |
+| `Loader`               | DataLoader instance                                                                    | `utils/loaders/index.js`              |
 
 ---
 
 ### Node Properties
 
+> **`repo`** — có mặt trên **tất cả node kinds** khi export sang FalkorDB. Giá trị = tên folder gốc của repo (e.g. `btcy-bioflux-backend-admin_api`). Dùng để phân biệt node thuộc service nào trong multi-repo graph.
+
 #### File
-| Property | Type | Mô tả |
-|----------|------|-------|
-| `name` | string | Absolute file path |
-| `file_path` | string | Giống `name` |
-| `language` | string | Ngôn ngữ phát hiện (python, typescript, javascript, …) |
-| `line_start` | int | Luôn = 1 |
-| `line_end` | int | Tổng số dòng |
+
+| Property     | Type   | Mô tả                                                  |
+| ------------ | ------ | ------------------------------------------------------ |
+| `name`       | string | Absolute file path                                     |
+| `file_path`  | string | Giống `name`                                           |
+| `language`   | string | Ngôn ngữ phát hiện (python, typescript, javascript, …) |
+| `line_start` | int    | Luôn = 1                                               |
+| `line_end`   | int    | Tổng số dòng                                           |
+| `repo`       | string | Tên folder repo (FalkorDB only)                        |
 
 #### Function / Test
-| Property | Type | Mô tả |
-|----------|------|-------|
-| `name` | string | Tên function |
-| `file_path` | string | File chứa function |
-| `line_start` | int | Dòng bắt đầu |
-| `line_end` | int | Dòng kết thúc |
-| `language` | string | Ngôn ngữ |
-| `parent_name` | string? | Class chứa (nếu là method) |
-| `params` | string? | Danh sách params dạng text |
-| `return_type` | string? | Return type annotation |
-| `is_test` | bool | `True` nếu là Test node |
+
+| Property         | Type    | Mô tả                                                                                |
+| ---------------- | ------- | ------------------------------------------------------------------------------------ |
+| `name`           | string  | Tên function                                                                         |
+| `qualified_name` | string  | Định danh duy nhất: `file_path::ClassName.methodName` hoặc `file_path::functionName` |
+| `file_path`      | string  | Absolute path của file chứa function                                                 |
+| `line_start`     | int     | Dòng bắt đầu định nghĩa                                                              |
+| `line_end`       | int     | Dòng kết thúc định nghĩa                                                             |
+| `language`       | string  | Ngôn ngữ của file                                                                    |
+| `parent_name`    | string? | Tên class chứa function (nếu là method); `null` nếu là top-level                     |
+| `params`         | string? | Danh sách tham số dạng text (e.g. `"id: string, opts: Options"`)                     |
+| `return_type`    | string? | Return type annotation (e.g. `"Promise<User>"`)                                      |
+| `is_test`        | bool    | `True` nếu là Test node (file nằm trong test directory)                              |
+| `repo`           | string  | Tên folder repo (FalkorDB only)                                                      |
 
 #### Class
-| Property | Type | Mô tả |
-|----------|------|-------|
-| `name` | string | Tên class |
-| `file_path` | string | File chứa class |
-| `line_start` | int | Dòng bắt đầu |
-| `line_end` | int | Dòng kết thúc |
-| `parent_name` | string? | Class cha (nested class) |
+| Property         | Type    | Mô tả                                               |
+| ---------------- | ------- | --------------------------------------------------- |
+| `name`           | string  | Tên class                                           |
+| `qualified_name` | string  | Định danh duy nhất: `file_path::ClassName`          |
+| `file_path`      | string  | Absolute path của file chứa class                   |
+| `line_start`     | int     | Dòng bắt đầu định nghĩa                             |
+| `line_end`       | int     | Dòng kết thúc định nghĩa                            |
+| `parent_name`    | string? | Class cha nếu là nested class; `null` nếu top-level |
+| `repo`           | string  | Tên folder repo (FalkorDB only)                     |
 
 #### GQLType
-| Property | Type | Mô tả |
-|----------|------|-------|
-| `name` | string | Tên type (e.g. `Query`, `HolterProfile`, `UpdateHolterProfileInput`) |
-| `file_path` | string | Path của `.schema.gql` |
-| `type_kind` | string | `type` / `input` / `enum` / `interface` / `union` / `scalar` |
-| `is_federation_entity` | bool | Có directive `@key` |
-| `key_fields` | string | Giá trị `@key(fields: "...")` |
-| `is_shareable` | bool | Có directive `@shareable` |
-| `is_external` | bool | Có directive `@external` |
+
+| Property               | Type   | Mô tả                                                                |
+| ---------------------- | ------ | -------------------------------------------------------------------- |
+| `name`                 | string | Tên type (e.g. `Query`, `HolterProfile`, `UpdateHolterProfileInput`) |
+| `file_path`            | string | Path của `.schema.gql`                                               |
+| `type_kind`            | string | `type` / `input` / `enum` / `interface` / `union` / `scalar`         |
+| `is_federation_entity` | bool   | Có directive `@key`                                                  |
+| `key_fields`           | string | Giá trị `@key(fields: "...")`                                        |
+| `is_shareable`         | bool   | Có directive `@shareable`                                            |
+| `is_external`          | bool   | Có directive `@external`                                             |
 
 #### GQLField
-| Property | Type | Mô tả |
-|----------|------|-------|
-| `name` | string | Tên field (e.g. `holterProfile`, `updateHolterProfile`) |
-| `file_path` | string | Path của `.schema.gql` |
-| `parent_name` | string | Type chứa field (e.g. `Query`, `Mutation`, `HolterProfile`) |
-| `return_type` | string | Return type của field |
-| `operation` | string | `query` / `mutation` / `subscription` / `type_field` |
-| `return_type_is_list` | bool | Return type có phải list |
-| `return_type_nullable` | bool | Có nullable |
-| `auth` | dict (JSON) | Auth directive `{groups: [...], roles: [...]}` |
-| `directives` | list (JSON) | Danh sách directives (e.g. `["@auth", "@deprecated"]`) |
-| `is_external` | bool | `True` nếu là synthetic placeholder (federation field) |
+
+| Property               | Type        | Mô tả                                                       |
+| ---------------------- | ----------- | ----------------------------------------------------------- |
+| `name`                 | string      | Tên field (e.g. `holterProfile`, `updateHolterProfile`)     |
+| `file_path`            | string      | Path của `.schema.gql`                                      |
+| `parent_name`          | string      | Type chứa field (e.g. `Query`, `Mutation`, `HolterProfile`) |
+| `return_type`          | string      | Return type của field                                       |
+| `operation`            | string      | `query` / `mutation` / `subscription` / `type_field`        |
+| `return_type_is_list`  | bool        | Return type có phải list                                    |
+| `return_type_nullable` | bool        | Có nullable                                                 |
+| `auth`                 | dict (JSON) | Auth directive `{groups: [...], roles: [...]}`              |
+| `directives`           | list (JSON) | Danh sách directives (e.g. `["@auth", "@deprecated"]`)      |
+| `is_external`          | bool        | `True` nếu là synthetic placeholder (federation field)      |
 
 #### Loader
-| Property | Type | Mô tả |
-|----------|------|-------|
-| `name` | string | Tên loader (e.g. `holterProfile`) |
-| `file_path` | string | Path của `loaders/index.js` |
-| `parent_name` | string | Luôn = `"loaders"` |
-| `batch_function` | string | Tên batch function |
+
+| Property         | Type   | Mô tả                             |
+| ---------------- | ------ | --------------------------------- |
+| `name`           | string | Tên loader (e.g. `holterProfile`) |
+| `file_path`      | string | Path của `loaders/index.js`       |
+| `parent_name`    | string | Luôn = `"loaders"`                |
+| `batch_function` | string | Tên batch function                |
 
 ---
 
@@ -100,34 +112,34 @@ Complete reference for all node kinds and edge relationship types in the code-re
 
 ### Code Structure Edges (parser)
 
-| Kind | Source → Target | Ý nghĩa |
-|------|----------------|---------|
-| `CALLS` | Function → Function | Function gọi function khác |
-| `IMPORTS_FROM` | File → File | Import / require |
-| `CONTAINS` | File/Class → Function/Class | File chứa function; Class chứa method |
-| `INHERITS` | Class → Class | Kế thừa / extends |
-| `TESTED_BY` | Function → Test | Function được cover bởi test |
-| `DEPENDS_ON` | File → File | Dependency không phải import trực tiếp |
-| `REFERENCES` | Function → Function/Class | Tham chiếu không phải call |
+| Kind           | Source → Target             | Ý nghĩa                                |
+| -------------- | --------------------------- | -------------------------------------- |
+| `CALLS`        | Function → Function         | Function gọi function khác             |
+| `IMPORTS_FROM` | File → File                 | Import / require                       |
+| `CONTAINS`     | File/Class → Function/Class | File chứa function; Class chứa method  |
+| `INHERITS`     | Class → Class               | Kế thừa / extends                      |
+| `TESTED_BY`    | Function → Test             | Function được cover bởi test           |
+| `DEPENDS_ON`   | File → File                 | Dependency không phải import trực tiếp |
+| `REFERENCES`   | Function → Function/Class   | Tham chiếu không phải call             |
 
 ### GraphQL Schema Edges
 
-| Kind | Source → Target | Ý nghĩa |
-|------|----------------|---------|
-| `FIELD_OF` | GQLField → GQLType | Field thuộc về type nào |
-| `RETURNS` | GQLField → GQLType | Return type của field |
-| `ACCEPTS` | GQLField → GQLType | Argument type (Input type) của field |
+| Kind       | Source → Target    | Ý nghĩa                              |
+| ---------- | ------------------ | ------------------------------------ |
+| `FIELD_OF` | GQLField → GQLType | Field thuộc về type nào              |
+| `RETURNS`  | GQLField → GQLType | Return type của field                |
+| `ACCEPTS`  | GQLField → GQLType | Argument type (Input type) của field |
 
 ### GraphQL Runtime Edges (resolver / datasource)
 
-| Kind | Source → Target | Ý nghĩa |
-|------|----------------|---------|
-| `RESOLVES` | Function → GQLField | Resolver xử lý field trong schema local |
-| `RESOLVES_EXTERNAL` | Function → GQLField (synthetic) | Resolver xử lý field từ federated service khác |
-| `RESOLVES_REF` | Function → GQLType | `__resolveReference` — federation entity resolver |
-| `DELEGATES_TO` | Function → Function | Resolver gọi datasource / controller |
-| `USES_LOADER` | Function → Loader | Resolver dùng DataLoader |
-| `BACKED_BY` | Loader → Function | Loader backed by batch function |
+| Kind                | Source → Target                 | Ý nghĩa                                           |
+| ------------------- | ------------------------------- | ------------------------------------------------- |
+| `RESOLVES`          | Function → GQLField             | Resolver xử lý field trong schema local           |
+| `RESOLVES_EXTERNAL` | Function → GQLField (synthetic) | Resolver xử lý field từ federated service khác    |
+| `RESOLVES_REF`      | Function → GQLType              | `__resolveReference` — federation entity resolver |
+| `DELEGATES_TO`      | Function → Function             | Resolver gọi datasource / controller              |
+| `USES_LOADER`       | Function → Loader               | Resolver dùng DataLoader                          |
+| `BACKED_BY`         | Loader → Function               | Loader backed by batch function                   |
 
 ---
 
