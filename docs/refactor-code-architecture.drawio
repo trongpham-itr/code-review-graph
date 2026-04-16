@@ -1,0 +1,204 @@
+<mxGraphModel adaptiveColors="auto">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- LEGEND -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <mxCell id="legend_box" value="Legend" style="swimlane;startSize=24;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="20" y="20" width="220" height="110" as="geometry"/>
+    </mxCell>
+    <mxCell id="leg_new" value="MỚI (refactor-code)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1a5c1a;fontSize=11;" vertex="1" parent="legend_box">
+      <mxGeometry x="10" y="34" width="200" height="24" as="geometry"/>
+    </mxCell>
+    <mxCell id="leg_mod" value="SỬA (refactor-code)" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontColor=#7d4800;fontSize=11;" vertex="1" parent="legend_box">
+      <mxGeometry x="10" y="64" width="200" height="24" as="geometry"/>
+    </mxCell>
+    <mxCell id="leg_exist" value="Từ main (không thay đổi)" style="rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=11;" vertex="1" parent="legend_box">
+      <mxGeometry x="10" y="94" width="200" height="24" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ROW 1: SOURCE FILES -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <mxCell id="src_label" value="SOURCE FILES" style="text;fontStyle=1;fontSize=11;fontColor=#555555;align=center;" vertex="1" parent="1">
+      <mxGeometry x="280" y="20" width="900" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="src_js" value="JS / TS Files&#xa;(resolvers/, utils/, loaders/)" style="rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="280" y="50" width="200" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="src_gql" value=".schema.gql&#xa;(GraphQL SDL)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1a5c1a;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="510" y="50" width="200" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="src_py" value="Python / Go / Other&#xa;(19 languages)" style="rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="740" y="50" width="200" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="src_sh" value="build_graph.sh&#xa;(Multi-repo script)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1a5c1a;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="970" y="50" width="200" height="50" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ROW 2: PARSERS -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <mxCell id="parser_label" value="PARSING LAYER" style="text;fontStyle=1;fontSize=11;fontColor=#555555;align=center;" vertex="1" parent="1">
+      <mxGeometry x="280" y="160" width="900" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="parser_js" value="parser.py&#xa;Tree-sitter JS/TS&#xa;[SỬA: require() + destructure]" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontColor=#7d4800;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="280" y="190" width="200" height="65" as="geometry"/>
+    </mxCell>
+    <mxCell id="parser_gql" value="graphql_extractor.py&#xa;graphql-core AST&#xa;_parse_schema_gql()&#xa;_extract_resolvers()&#xa;_extract_loaders()" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1a5c1a;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="510" y="190" width="200" height="85" as="geometry"/>
+    </mxCell>
+    <mxCell id="parser_core" value="parser.py&#xa;Tree-sitter (19 langs)&#xa;[Core - không đổi]" style="rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="740" y="190" width="200" height="65" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ROW 3: BUILD PIPELINE -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <mxCell id="build_label" value="BUILD PIPELINE" style="text;fontStyle=1;fontSize=11;fontColor=#555555;align=center;" vertex="1" parent="1">
+      <mxGeometry x="280" y="340" width="900" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="incremental" value="incremental.py&#xa;full_build() + incremental_update()&#xa;[SỬA: gọi extract_graphql_for_repo()]&#xa;Trigger: .schema.gql | /resolvers/ | /loaders/" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontColor=#7d4800;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="390" y="370" width="420" height="70" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ROW 4: SQLITE GRAPH STORE -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <mxCell id="store_label" value="GRAPH STORE (SQLite)" style="text;fontStyle=1;fontSize=11;fontColor=#555555;align=center;" vertex="1" parent="1">
+      <mxGeometry x="280" y="510" width="900" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="store_container" value="" style="swimlane;startSize=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="280" y="540" width="900" height="130" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="node_fn" value="Function&#xa;Class&#xa;File&#xa;Test" style="rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=10;" vertex="1" parent="store_container">
+      <mxGeometry x="20" y="30" width="120" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="node_gql" value="GQLType&#xa;GQLField&#xa;[+ description]&#xa;Loader" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1a5c1a;fontSize=10;fontStyle=1;" vertex="1" parent="store_container">
+      <mxGeometry x="180" y="30" width="120" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="edge_old" value="CALLS&#xa;IMPORTS_FROM&#xa;CONTAINS&#xa;TESTED_BY" style="rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=10;" vertex="1" parent="store_container">
+      <mxGeometry x="340" y="30" width="120" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="edge_new" value="RESOLVES&#xa;RESOLVES_EXTERNAL&#xa;USES_LOADER&#xa;BACKED_BY&#xa;DELEGATES_TO&#xa;FIELD_OF / RETURNS" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1a5c1a;fontSize=10;fontStyle=1;" vertex="1" parent="store_container">
+      <mxGeometry x="500" y="10" width="145" height="110" as="geometry"/>
+    </mxCell>
+    <mxCell id="store_meta" value=".code-review-graph/graph.db&#xa;(SQLite WAL mode)" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#00337a;fontSize=10;fontStyle=1;" vertex="1" parent="store_container">
+      <mxGeometry x="685" y="30" width="195" height="80" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ROW 5: EXPORT -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <mxCell id="export_label" value="EXPORT LAYER" style="text;fontStyle=1;fontSize=11;fontColor=#555555;align=center;" vertex="1" parent="1">
+      <mxGeometry x="280" y="740" width="900" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="falkordb_export" value="falkordb_export.py&#xa;export_to_falkordb()&#xa;MERGE nodes (200/batch)&#xa;MERGE edges (500/batch)&#xa;_flatten_extra() → scalar props" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1a5c1a;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="390" y="770" width="220" height="90" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="falkordb_db" value="FalkorDB&#xa;(Redis Graph)&#xa;Cypher queries" style="shape=cylinder3;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1a5c1a;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="660" y="760" width="140" height="100" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="visualization" value="visualization.py&#xa;D3.js HTML export&#xa;[SỬA: minor]" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontColor=#7d4800;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="860" y="780" width="170" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ROW 6: MCP TOOLS -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <mxCell id="mcp_label" value="MCP TOOLS LAYER" style="text;fontStyle=1;fontSize=11;fontColor=#555555;align=center;" vertex="1" parent="1">
+      <mxGeometry x="280" y="940" width="900" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="mcp_container" value="" style="swimlane;startSize=0;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="280" y="970" width="900" height="160" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="tool_existing" value="22 Tools (main)&#xa;build_or_update_graph&#xa;get_impact_radius&#xa;query_graph (8 patterns)&#xa;get_review_context&#xa;list_communities&#xa;..." style="rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=10;" vertex="1" parent="mcp_container">
+      <mxGeometry x="20" y="20" width="175" height="120" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="tool_gql" value="Tool 23: list_gql_fields&#xa;- filter: operation&#xa;- filter: auth_group&#xa;- filter: auth_role&#xa;- detail_level: minimal/standard&#xa;&#xa;Tool 24: get_gql_field&#xa;- full resolver chain&#xa;- auth + return type&#xa;- loaders + batch fns" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1a5c1a;fontSize=10;fontStyle=1;" vertex="1" parent="mcp_container">
+      <mxGeometry x="215" y="20" width="200" height="120" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="tool_query_new" value="query_graph (+ 4 patterns)&#xa;resolvers_of&#xa;fields_of_type&#xa;loaders_of&#xa;delegates_to" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontColor=#7d4800;fontSize=10;" vertex="1" parent="mcp_container">
+      <mxGeometry x="435" y="20" width="175" height="120" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="cli_tool" value="cli.py&#xa;[SỬA]&#xa;+ falkordb-export&#xa;  --graph-name&#xa;  --host / --port&#xa;  --password" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontColor=#7d4800;fontSize=10;" vertex="1" parent="mcp_container">
+      <mxGeometry x="630" y="20" width="140" height="120" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="bench" value="benchmarks/&#xa;goldendataset.json (300 TCs)&#xa;falkordb_benchmark.py" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1a5c1a;fontSize=10;fontStyle=1;" vertex="1" parent="mcp_container">
+      <mxGeometry x="790" y="20" width="090" height="120" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- EDGES: Source → Parser -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <mxCell id="e_js_parser" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="src_js" target="parser_js" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e_gql_parser" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;strokeWidth=2;" edge="1" source="src_gql" target="parser_gql" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e_py_parser" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="src_py" target="parser_core" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- EDGES: Parser → incremental.py -->
+    <mxCell id="e_parser_js_inc" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="parser_js" target="incremental" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e_parser_gql_inc" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;strokeWidth=2;" edge="1" source="parser_gql" target="incremental" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e_parser_core_inc" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="parser_core" target="incremental" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- EDGES: incremental → SQLite -->
+    <mxCell id="e_inc_store" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;" edge="1" source="incremental" target="store_container" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- EDGES: SQLite → Export -->
+    <mxCell id="e_store_falkor" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;strokeWidth=2;" edge="1" source="store_container" target="falkordb_export" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e_store_viz" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="store_container" target="visualization" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- EDGES: falkordb_export → FalkorDB -->
+    <mxCell id="e_falkor_db" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;strokeWidth=2;" edge="1" source="falkordb_export" target="falkordb_db" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- EDGES: SQLite → MCP Tools -->
+    <mxCell id="e_store_mcp" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;" edge="1" source="store_container" target="mcp_container" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- EDGES: FalkorDB → benchmarks -->
+    <mxCell id="e_falkordb_bench" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;strokeWidth=2;dashed=1;" edge="1" source="falkordb_db" target="mcp_container" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- Title -->
+    <mxCell id="title" value="refactor-code vs main — Architecture Data Flow" style="text;fontStyle=1;fontSize=16;fontColor=#1a1a1a;align=center;" vertex="1" parent="1">
+      <mxGeometry x="280" y="1155" width="900" height="30" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
