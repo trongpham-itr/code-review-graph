@@ -19,6 +19,11 @@ Edge relationship types match GraphStore kinds: CALLS, IMPORTS_FROM,
 INHERITS, CONTAINS, TESTED_BY, DEPENDS_ON, REFERENCES, FIELD_OF, RETURNS,
 ACCEPTS, RESOLVES, RESOLVES_EXTERNAL, RESOLVES_REF, DELEGATES_TO,
 USES_LOADER, BACKED_BY.
+
+Unified key strategy (no SAME_AS):
+  GQLType  → primary key = ``name``  (global across federation)
+  GQLField → primary key = ``key``   (= "{service}:{parent}.{field}",
+             same format used by graphql_rag so nodes MERGE naturally)
 """
 
 from __future__ import annotations
@@ -71,9 +76,21 @@ def _resolve_service_from_file_path(
     except ValueError:
         return fallback
 
+
 # Batch size for UNWIND bulk inserts
 _NODE_BATCH = 200
 _EDGE_BATCH = 500
+
+# Canonical edge-type aliases: normalize code-review-graph edge names to match
+# graphql_rag names so the unified graph has no redundant relationship types.
+#   FIELD_OF      → OF_TYPE          (GQLField -[OF_TYPE]-> GQLType)
+#   RETURNS       → RETURNS_TYPE     (GQLField -[RETURNS_TYPE]-> GQLType)
+#   ACCEPTS       → USES_INPUT_TYPE  (GQLField -[USES_INPUT_TYPE]-> GQLType)
+_EDGE_ALIASES: dict[str, str] = {
+    "FIELD_OF": "OF_TYPE",
+    "RETURNS": "RETURNS_TYPE",
+    "ACCEPTS": "USES_INPUT_TYPE",
+}
 
 
 def _flatten_extra(extra: dict | None) -> dict:
@@ -128,15 +145,15 @@ def export_to_falkordb(
     service_name = _repo_resolver.get(repo_folder, repo_folder)
     logger.info("Resolved repo '%s' → service '%s'", repo_folder, service_name)
 
-    # Detect monorepo: if resolver contains sub-folder entries that resolve to
-    # different service names, we are in a multi-service monorepo layout.
+    # Detect monorepo: resolver has sub-folder entries resolving to different names
     _is_monorepo = any(
-        _resolve_service_from_file_path(str(monorepo_root / folder), monorepo_root, _repo_resolver, service_name) != service_name
+        _resolve_service_from_file_path(
+            str(monorepo_root / folder), monorepo_root, _repo_resolver, service_name
+        ) != service_name
         for folder in _repo_resolver
     )
 
-    # ── Export nodes ───────────────────────────────────────────────────────
-    # Collect all nodes from every file (same iteration order as visualization)
+    # ── Collect nodes ──────────────────────────────────────────────────────
     all_nodes: list[Any] = []
     seen_qn: set[str] = set()
 
@@ -147,10 +164,8 @@ def export_to_falkordb(
             seen_qn.add(node.qualified_name)
             all_nodes.append(node)
 
-    # Also pick up nodes whose file has no File-kind node (e.g. GQL-only extract)
-    # by scanning all distinct file_paths directly.
-    import sqlite3
-    conn = store._conn  # access underlying connection
+    # Pick up nodes whose file has no File-kind node (e.g. GQL-only extract)
+    conn = store._conn
     extra_fps = conn.execute(
         "SELECT DISTINCT file_path FROM nodes WHERE file_path NOT IN "
         "(SELECT DISTINCT file_path FROM nodes WHERE kind = 'File')"
@@ -163,20 +178,34 @@ def export_to_falkordb(
 
     logger.info("Exporting %d nodes to FalkorDB graph '%s'", len(all_nodes), graph_name)
 
-    # Track (service_name, qualified_name) for GQLType nodes to link after export
+    # ── Build lookup: qualified_name → unified key (for edge resolution) ───
+    # GQLType  unified key = name
+    # GQLField unified key = "{service}:{parent}.{field}"
+    # Others   unified key = qualified_name (unchanged)
+    qn_to_key: dict[str, str] = {}
+
+    # Track (service, unified_key) for GQLType OWNS_TYPE links
     _gql_type_service: list[tuple[str, str]] = []
 
+    # ── Export nodes ───────────────────────────────────────────────────────
     for i in range(0, len(all_nodes), _NODE_BATCH):
         batch = all_nodes[i:i + _NODE_BATCH]
-        params: list[dict] = []
+
+        # Separate GQLType, GQLField, and other nodes — each needs different MERGE key
+        gql_types: list[dict] = []
+        gql_fields: list[dict] = []
+        other_nodes: list[tuple[str, dict]] = []  # (kind, props)
+
         for node in batch:
-            # Resolve per-node service for monorepo layouts
             node_service = (
-                _resolve_service_from_file_path(node.file_path, monorepo_root, _repo_resolver, service_name)
+                _resolve_service_from_file_path(
+                    node.file_path, monorepo_root, _repo_resolver, service_name
+                )
                 if _is_monorepo
                 else service_name
             )
-            props: dict[str, Any] = {
+
+            base_props: dict[str, Any] = {
                 "qualified_name": node.qualified_name,
                 "name": node.name,
                 "file_path": node.file_path or "",
@@ -187,37 +216,95 @@ def export_to_falkordb(
                 "repo": node_service,
             }
             if node.parent_name:
-                props["parent_name"] = node.parent_name
+                base_props["parent_name"] = node.parent_name
             if node.return_type:
-                props["return_type"] = node.return_type
+                base_props["return_type"] = node.return_type
             if node.params:
-                props["params"] = node.params
-            props.update(_flatten_extra(node.extra))
-            params.append({"kind": node.kind, "props": props})
+                base_props["params"] = node.params
+            base_props.update(_flatten_extra(node.extra))
 
             if node.kind == "GQLType":
-                _gql_type_service.append((node_service, node.qualified_name))
+                # Unified key = name (global across federation)
+                unified_key = node.name
+                qn_to_key[node.qualified_name] = unified_key
+                _gql_type_service.append((node_service, unified_key))
+                gql_types.append(base_props)
 
-        # Group by kind so each MERGE uses the correct label.
-        # FalkorDB does not support dynamic labels in parameterised queries,
-        # so we interpolate the label name (safe: values come from our own
-        # internal kind enum, never from user input).
-        by_node_kind: dict[str, list[dict]] = {}
-        for p in params:
-            by_node_kind.setdefault(p["kind"], []).append(p["props"])
+            elif node.kind == "GQLField":
+                # Unified key = "{service}:{parent}.{field}" — matches graphql_rag format
+                if node.parent_name and node_service:
+                    unified_key = f"{node_service}:{node.parent_name}.{node.name}"
+                else:
+                    unified_key = node.qualified_name  # fallback
+                qn_to_key[node.qualified_name] = unified_key
+                base_props["key"] = unified_key
+                gql_fields.append(base_props)
 
-        for kind, kind_props in by_node_kind.items():
-            safe_label = kind.replace("-", "_")  # e.g. GQLField stays GQLField
+            else:
+                qn_to_key[node.qualified_name] = node.qualified_name
+                safe_label = node.kind.replace("-", "_")
+                other_nodes.append((safe_label, base_props))
+
+        # Export GQLType — MERGE on name, SET qualified_name + code props
+        if gql_types:
+            try:
+                graph.query(
+                    "UNWIND $rows AS row "
+                    "MERGE (n:GQLType {name: row.name}) "
+                    "SET n.qualified_name = row.qualified_name, "
+                    "    n.file_path      = row.file_path, "
+                    "    n.language       = row.language, "
+                    "    n.line_start     = row.line_start, "
+                    "    n.line_end       = row.line_end, "
+                    "    n.repo           = row.repo, "
+                    "    n.kind           = 'GQLType' "
+                    "SET n += row",
+                    {"rows": gql_types},
+                )
+                stats["nodes_written"] += len(gql_types)
+            except Exception as exc:  # noqa: BLE001
+                msg = f"GQLType node batch {i}: {exc}"
+                logger.error(msg)
+                stats["errors"].append(msg)
+
+        # Export GQLField — MERGE on key (unified with graphql_rag)
+        if gql_fields:
+            try:
+                graph.query(
+                    "UNWIND $rows AS row "
+                    "MERGE (n:GQLField {key: row.key}) "
+                    "SET n.qualified_name = row.qualified_name, "
+                    "    n.file_path      = row.file_path, "
+                    "    n.language       = row.language, "
+                    "    n.line_start     = row.line_start, "
+                    "    n.line_end       = row.line_end, "
+                    "    n.repo           = row.repo, "
+                    "    n.kind           = 'GQLField' "
+                    "SET n += row",
+                    {"rows": gql_fields},
+                )
+                stats["nodes_written"] += len(gql_fields)
+            except Exception as exc:  # noqa: BLE001
+                msg = f"GQLField node batch {i}: {exc}"
+                logger.error(msg)
+                stats["errors"].append(msg)
+
+        # Export other nodes — MERGE on qualified_name (unchanged)
+        by_label: dict[str, list[dict]] = {}
+        for label, props in other_nodes:
+            by_label.setdefault(label, []).append(props)
+
+        for label, label_props in by_label.items():
             try:
                 graph.query(
                     f"UNWIND $rows AS row "
-                    f"MERGE (n:Node:{safe_label} {{qualified_name: row.qualified_name}}) "
-                    f"SET n += row, n.kind = '{safe_label}'",
-                    {"rows": kind_props},
+                    f"MERGE (n:Node:{label} {{qualified_name: row.qualified_name}}) "
+                    f"SET n += row, n.kind = '{label}'",
+                    {"rows": label_props},
                 )
-                stats["nodes_written"] += len(kind_props)
+                stats["nodes_written"] += len(label_props)
             except Exception as exc:  # noqa: BLE001
-                msg = f"Node batch {kind} {i}–{i + len(kind_props)}: {exc}"
+                msg = f"Node batch {label} {i}: {exc}"
                 logger.error(msg)
                 stats["errors"].append(msg)
 
@@ -225,41 +312,66 @@ def export_to_falkordb(
     all_edges = list(store.get_all_edges())
     logger.info("Exporting %d edges to FalkorDB graph '%s'", len(all_edges), graph_name)
 
+    # Pre-build set of (src_key, tgt_key) pairs that have CONTAINS edge,
+    # so we can skip REFERENCES for the same pair (CONTAINS is stronger).
+    contains_pairs: set[tuple[str, str]] = set()
+    for edge in all_edges:
+        if edge.kind == "CONTAINS":
+            src_key = qn_to_key.get(edge.source_qualified, edge.source_qualified)
+            tgt_key = qn_to_key.get(edge.target_qualified, edge.target_qualified)
+            contains_pairs.add((src_key, tgt_key))
+
     for i in range(0, len(all_edges), _EDGE_BATCH):
         batch = all_edges[i:i + _EDGE_BATCH]
-        # Group by kind to emit typed relationships
         by_kind: dict[str, list[dict]] = {}
+
         for edge in batch:
-            # Only emit edges whose endpoints are in the exported node set
             if edge.source_qualified not in seen_qn or edge.target_qualified not in seen_qn:
                 continue
+            src_key = qn_to_key.get(edge.source_qualified, edge.source_qualified)
+            tgt_key = qn_to_key.get(edge.target_qualified, edge.target_qualified)
+
+            # Skip REFERENCES when CONTAINS already exists for same (src, tgt) pair
+            if edge.kind == "REFERENCES" and (src_key, tgt_key) in contains_pairs:
+                continue
+
             by_kind.setdefault(edge.kind, []).append({
-                "src": edge.source_qualified,
-                "tgt": edge.target_qualified,
+                "src": src_key,
+                "tgt": tgt_key,
+                "src_qn": edge.source_qualified,
+                "tgt_qn": edge.target_qualified,
                 "file_path": edge.file_path or "",
                 "line": edge.line or 0,
             })
 
         for kind, rows in by_kind.items():
-            # Sanitize relationship type (Cypher requires identifier-safe names)
-            safe_kind = kind.replace("-", "_")
+            canonical = _EDGE_ALIASES.get(kind, kind)
+            safe_kind = canonical.replace("-", "_")
             try:
+                # MATCH by unified key for GQLType/GQLField, by qualified_name for others.
+                # Strategy: try key first (GQLField), then name (GQLType), then qualified_name.
                 graph.query(
                     f"UNWIND $rows AS row "
-                    f"MATCH (a:Node {{qualified_name: row.src}}) "
-                    f"MATCH (b:Node {{qualified_name: row.tgt}}) "
+                    f"OPTIONAL MATCH (a1:GQLField  {{key:            row.src}}) "
+                    f"OPTIONAL MATCH (a2:GQLType   {{name:           row.src}}) "
+                    f"OPTIONAL MATCH (a3:Node       {{qualified_name: row.src_qn}}) "
+                    f"WITH row, coalesce(a1, a2, a3) AS a "
+                    f"OPTIONAL MATCH (b1:GQLField  {{key:            row.tgt}}) "
+                    f"OPTIONAL MATCH (b2:GQLType   {{name:           row.tgt}}) "
+                    f"OPTIONAL MATCH (b3:Node       {{qualified_name: row.tgt_qn}}) "
+                    f"WITH row, a, coalesce(b1, b2, b3) AS b "
+                    f"WHERE a IS NOT NULL AND b IS NOT NULL "
                     f"MERGE (a)-[r:{safe_kind}]->(b) "
                     f"SET r.file_path = row.file_path, r.line = row.line",
                     {"rows": rows},
                 )
                 stats["edges_written"] += len(rows)
             except Exception as exc:  # noqa: BLE001
-                msg = f"Edge batch {kind} {i}–{i + len(rows)}: {exc}"
+                msg = f"Edge batch {kind} {i}: {exc}"
                 logger.error(msg)
                 stats["errors"].append(msg)
 
-    # ── Link File nodes to their Service node ─────────────────────────────
-    # Collect all unique service names seen across nodes
+    # ── Link File nodes to their Service node via BELONGS_TO ──────────────
     all_services: set[str] = {service_name}
     if _is_monorepo:
         all_services.update(svc for svc, _ in _gql_type_service)
@@ -281,8 +393,7 @@ def export_to_falkordb(
             logger.error(msg)
             stats["errors"].append(msg)
 
-    # Skip creating a bare monorepo-root Service node (e.g. 'be-repos') — it is
-    # not a real service and would pollute the graph.
+    # Remove bare monorepo-root Service node (e.g. 'be-repos') — not a real service
     if _is_monorepo and service_name not in _repo_resolver.values():
         try:
             graph.query("MATCH (s:Service {name: $svc}) DETACH DELETE s", {"svc": service_name})
@@ -294,49 +405,24 @@ def export_to_falkordb(
         _GQLTYPE_BATCH = 200
         for i in range(0, len(_gql_type_service), _GQLTYPE_BATCH):
             rows = [
-                {"svc": svc, "qn": qn}
-                for svc, qn in _gql_type_service[i:i + _GQLTYPE_BATCH]
+                {"svc": svc, "type_name": type_name}
+                for svc, type_name in _gql_type_service[i:i + _GQLTYPE_BATCH]
             ]
             try:
                 graph.query(
                     "UNWIND $rows AS row "
-                    "MATCH (t:Node:GQLType {qualified_name: row.qn}) "
+                    "MATCH (t:GQLType {name: row.type_name}) "
                     "MERGE (s:Service {name: row.svc}) ON CREATE SET s.repo = row.svc "
-                    "MERGE (s)-[:OWNS_TYPE]->(t)",
+                    "MERGE (s)-[:OWNS_TYPE]->(t) "
+                    "WITH s, t "
+                    "MATCH (s)-[ext:EXTENDS_TYPE]->(t) "
+                    "DELETE ext",
                     {"rows": rows},
                 )
             except Exception as exc:  # noqa: BLE001
                 msg = f"OWNS_TYPE batch {i}: {exc}"
                 logger.error(msg)
                 stats["errors"].append(msg)
-
-    # ── Cross-link code-review-graph ↔ graphql_rag nodes via SAME_AS ─────────
-    # GQLField: match by (parent_type, field_name) — graphql_rag uses key="{svc}:{parent}.{field}"
-    # code-review-graph GQLField has parent_name + name properties.
-    try:
-        graph.query(
-            "MATCH (crg:GQLField) WHERE crg.qualified_name IS NOT NULL "
-            "MATCH (gql:GQLField) WHERE gql.qualified_name IS NULL "
-            "  AND gql.name = crg.name AND gql.parent = crg.parent_name "
-            "MERGE (crg)-[:SAME_AS]->(gql)"
-        )
-    except Exception as exc:  # noqa: BLE001
-        msg = f"SAME_AS GQLField cross-link: {exc}"
-        logger.warning(msg)
-        stats["errors"].append(msg)
-
-    # GQLType: match by name
-    try:
-        graph.query(
-            "MATCH (crg:GQLType) WHERE crg.qualified_name IS NOT NULL "
-            "MATCH (gql:GQLType) WHERE gql.qualified_name IS NULL "
-            "  AND gql.name = crg.name "
-            "MERGE (crg)-[:SAME_AS]->(gql)"
-        )
-    except Exception as exc:  # noqa: BLE001
-        msg = f"SAME_AS GQLType cross-link: {exc}"
-        logger.warning(msg)
-        stats["errors"].append(msg)
 
     logger.info(
         "FalkorDB export complete: %d nodes, %d edges, %d errors",
