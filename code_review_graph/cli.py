@@ -438,9 +438,10 @@ def main() -> None:
         "falkordb-export", help="Export graph to FalkorDB"
     )
     falkor_cmd.add_argument("--repo", default=None, help="Repository root (auto-detected)")
+    _unified = os.getenv("FALKORDB_UNIFIED_GRAPH") or os.getenv("FALKORDB_NAME_CODE_REVIEW_GRAPH")
     falkor_cmd.add_argument(
-        "--graph-name", required=True, dest="graph_name",
-        help="FalkorDB graph name to create / update",
+        "--graph-name", required=_unified is None, dest="graph_name", default=_unified,
+        help="FalkorDB graph name to create / update (or set FALKORDB_UNIFIED_GRAPH env var)",
     )
     falkor_cmd.add_argument("--host", default="localhost", help="FalkorDB host (default: localhost)")
     falkor_cmd.add_argument("--port", type=int, default=6379, help="FalkorDB port (default: 6379)")

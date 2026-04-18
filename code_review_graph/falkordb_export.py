@@ -25,10 +25,51 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+def _load_repo_resolver() -> dict[str, str]:
+    """Build repo_folder → canonical_service_name lookup from service-map-name.json."""
+    env_path = os.getenv("SERVICE_MAP_NAME_PATH")
+    candidates = [Path(env_path)] if env_path else []
+    for parent in [Path(os.getcwd()), *Path(os.getcwd()).parents]:
+        candidates.append(parent / "scripts" / "repo" / "service-map-name.json")
+    for path in candidates:
+        if path.exists():
+            data = json.loads(path.read_text())
+            return {
+                v["repo"]: k
+                for k, v in data.get("services", {}).items()
+                if v.get("repo")
+            }
+    return {}
+
+
+def _resolve_service_from_file_path(
+    file_path: str | None,
+    monorepo_root: Path,
+    resolver: dict[str, str],
+    fallback: str,
+) -> str:
+    """Extract canonical service name from a file path inside a monorepo.
+
+    For a monorepo layout like ``be-repos/btcy-bioflux-backend-clinic_api/…``,
+    the immediate sub-folder is looked up in *resolver* to get the canonical
+    service name.  Falls back to *fallback* when the path is outside the
+    monorepo or the folder is not in *resolver*.
+    """
+    if not file_path:
+        return fallback
+    try:
+        rel = Path(file_path).relative_to(monorepo_root)
+        folder = rel.parts[0]  # e.g. 'btcy-bioflux-backend-clinic_api'
+        return resolver.get(folder, folder)
+    except ValueError:
+        return fallback
 
 # Batch size for UNWIND bulk inserts
 _NODE_BATCH = 200
@@ -80,6 +121,20 @@ def export_to_falkordb(
 
     stats = {"nodes_written": 0, "edges_written": 0, "errors": []}
 
+    # ── Resolve canonical service name ─────────────────────────────────────
+    monorepo_root = store.db_path.parent.parent.resolve()
+    repo_folder = monorepo_root.name
+    _repo_resolver = _load_repo_resolver()
+    service_name = _repo_resolver.get(repo_folder, repo_folder)
+    logger.info("Resolved repo '%s' → service '%s'", repo_folder, service_name)
+
+    # Detect monorepo: if resolver contains sub-folder entries that resolve to
+    # different service names, we are in a multi-service monorepo layout.
+    _is_monorepo = any(
+        _resolve_service_from_file_path(str(monorepo_root / folder), monorepo_root, _repo_resolver, service_name) != service_name
+        for folder in _repo_resolver
+    )
+
     # ── Export nodes ───────────────────────────────────────────────────────
     # Collect all nodes from every file (same iteration order as visualization)
     all_nodes: list[Any] = []
@@ -108,10 +163,19 @@ def export_to_falkordb(
 
     logger.info("Exporting %d nodes to FalkorDB graph '%s'", len(all_nodes), graph_name)
 
+    # Track (service_name, qualified_name) for GQLType nodes to link after export
+    _gql_type_service: list[tuple[str, str]] = []
+
     for i in range(0, len(all_nodes), _NODE_BATCH):
         batch = all_nodes[i:i + _NODE_BATCH]
         params: list[dict] = []
         for node in batch:
+            # Resolve per-node service for monorepo layouts
+            node_service = (
+                _resolve_service_from_file_path(node.file_path, monorepo_root, _repo_resolver, service_name)
+                if _is_monorepo
+                else service_name
+            )
             props: dict[str, Any] = {
                 "qualified_name": node.qualified_name,
                 "name": node.name,
@@ -120,7 +184,7 @@ def export_to_falkordb(
                 "line_start": node.line_start or 0,
                 "line_end": node.line_end or 0,
                 "is_test": bool(node.is_test),
-                "repo": store.db_path.parent.parent.name,
+                "repo": node_service,
             }
             if node.parent_name:
                 props["parent_name"] = node.parent_name
@@ -130,6 +194,9 @@ def export_to_falkordb(
                 props["params"] = node.params
             props.update(_flatten_extra(node.extra))
             params.append({"kind": node.kind, "props": props})
+
+            if node.kind == "GQLType":
+                _gql_type_service.append((node_service, node.qualified_name))
 
         # Group by kind so each MERGE uses the correct label.
         # FalkorDB does not support dynamic labels in parameterised queries,
@@ -188,6 +255,58 @@ def export_to_falkordb(
                 stats["edges_written"] += len(rows)
             except Exception as exc:  # noqa: BLE001
                 msg = f"Edge batch {kind} {i}–{i + len(rows)}: {exc}"
+                logger.error(msg)
+                stats["errors"].append(msg)
+
+    # ── Link File nodes to their Service node ─────────────────────────────
+    # Collect all unique service names seen across nodes
+    all_services: set[str] = {service_name}
+    if _is_monorepo:
+        all_services.update(svc for svc, _ in _gql_type_service)
+
+    for svc in all_services:
+        try:
+            graph.query(
+                "MERGE (s:Service {name: $svc}) ON CREATE SET s.repo = $svc",
+                {"svc": svc},
+            )
+            graph.query(
+                "MATCH (f:Node:File {repo: $svc}) "
+                "MATCH (s:Service {name: $svc}) "
+                "MERGE (f)-[:BELONGS_TO]->(s)",
+                {"svc": svc},
+            )
+        except Exception as exc:  # noqa: BLE001
+            msg = f"BELONGS_TO link for service '{svc}': {exc}"
+            logger.error(msg)
+            stats["errors"].append(msg)
+
+    # Skip creating a bare monorepo-root Service node (e.g. 'be-repos') — it is
+    # not a real service and would pollute the graph.
+    if _is_monorepo and service_name not in _repo_resolver.values():
+        try:
+            graph.query("MATCH (s:Service {name: $svc}) DETACH DELETE s", {"svc": service_name})
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Could not remove monorepo root service node '%s': %s", service_name, exc)
+
+    # ── Link GQLType nodes to their Service via OWNS_TYPE ─────────────────
+    if _gql_type_service:
+        _GQLTYPE_BATCH = 200
+        for i in range(0, len(_gql_type_service), _GQLTYPE_BATCH):
+            rows = [
+                {"svc": svc, "qn": qn}
+                for svc, qn in _gql_type_service[i:i + _GQLTYPE_BATCH]
+            ]
+            try:
+                graph.query(
+                    "UNWIND $rows AS row "
+                    "MATCH (t:Node:GQLType {qualified_name: row.qn}) "
+                    "MERGE (s:Service {name: row.svc}) ON CREATE SET s.repo = row.svc "
+                    "MERGE (s)-[:OWNS_TYPE]->(t)",
+                    {"rows": rows},
+                )
+            except Exception as exc:  # noqa: BLE001
+                msg = f"OWNS_TYPE batch {i}: {exc}"
                 logger.error(msg)
                 stats["errors"].append(msg)
 
