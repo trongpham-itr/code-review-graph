@@ -310,6 +310,34 @@ def export_to_falkordb(
                 logger.error(msg)
                 stats["errors"].append(msg)
 
+    # ── Cross-link code-review-graph ↔ graphql_rag nodes via SAME_AS ─────────
+    # GQLField: match by (parent_type, field_name) — graphql_rag uses key="{svc}:{parent}.{field}"
+    # code-review-graph GQLField has parent_name + name properties.
+    try:
+        graph.query(
+            "MATCH (crg:GQLField) WHERE crg.qualified_name IS NOT NULL "
+            "MATCH (gql:GQLField) WHERE gql.qualified_name IS NULL "
+            "  AND gql.name = crg.name AND gql.parent = crg.parent_name "
+            "MERGE (crg)-[:SAME_AS]->(gql)"
+        )
+    except Exception as exc:  # noqa: BLE001
+        msg = f"SAME_AS GQLField cross-link: {exc}"
+        logger.warning(msg)
+        stats["errors"].append(msg)
+
+    # GQLType: match by name
+    try:
+        graph.query(
+            "MATCH (crg:GQLType) WHERE crg.qualified_name IS NOT NULL "
+            "MATCH (gql:GQLType) WHERE gql.qualified_name IS NULL "
+            "  AND gql.name = crg.name "
+            "MERGE (crg)-[:SAME_AS]->(gql)"
+        )
+    except Exception as exc:  # noqa: BLE001
+        msg = f"SAME_AS GQLType cross-link: {exc}"
+        logger.warning(msg)
+        stats["errors"].append(msg)
+
     logger.info(
         "FalkorDB export complete: %d nodes, %d edges, %d errors",
         stats["nodes_written"], stats["edges_written"], len(stats["errors"]),
