@@ -175,7 +175,6 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
             return_type=fd.get("return_type"),
             extra={
                 "operation": fd.get("operation", "type_field"),
-                "return_type": fd.get("return_type", ""),
                 "return_type_is_list": fd.get("return_type_is_list", False),
                 "return_type_nullable": fd.get("return_type_nullable", True),
                 "auth": fd.get("auth", {}),
