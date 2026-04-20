@@ -184,8 +184,12 @@ def export_to_falkordb(
     # Others   unified key = qualified_name (unchanged)
     qn_to_key: dict[str, str] = {}
 
-    # Track (service, unified_key) for GQLType OWNS_TYPE links
-    _gql_type_service: list[tuple[str, str]] = []
+    # GQLType ownership (OWNS_TYPE / EXTENDS_TYPE) is managed exclusively by
+    # graphql_rag which reads the Apollo SDL — the sole source of truth for
+    # federation type ownership.  code-review-graph only exports implementation
+    # nodes (Function, File, GQLField resolvers, etc.) and must not overwrite
+    # ownership edges set by graphql_rag.
+    _gql_type_service: list[tuple[str, str]] = []  # kept for BELONGS_TO service discovery only
 
     # ── Export nodes ───────────────────────────────────────────────────────
     for i in range(0, len(all_nodes), _NODE_BATCH):
@@ -267,7 +271,10 @@ def export_to_falkordb(
                 logger.error(msg)
                 stats["errors"].append(msg)
 
-        # Export GQLField — MERGE on key (unified with graphql_rag)
+        # Export GQLField — MERGE on key (unified with graphql_rag).
+        # Only SET implementation-domain properties owned by code-review-graph.
+        # Schema-domain properties (description, return_expr, kind) are owned
+        # by graphql_rag and must not be overwritten.
         if gql_fields:
             try:
                 graph.query(
@@ -279,8 +286,12 @@ def export_to_falkordb(
                     "    n.line_start     = row.line_start, "
                     "    n.line_end       = row.line_end, "
                     "    n.repo           = row.repo, "
-                    "    n.kind           = 'GQLField' "
-                    "SET n += row",
+                    "    n.kind           = 'GQLField', "
+                    "    n.is_deleted     = row.is_deleted, "
+                    "    n.is_external    = row.is_external, "
+                    "    n.operation      = row.operation, "
+                    "    n.auth           = row.auth, "
+                    "    n.directives     = row.directives ",
                     {"rows": gql_fields},
                 )
                 stats["nodes_written"] += len(gql_fields)
@@ -400,29 +411,9 @@ def export_to_falkordb(
         except Exception as exc:  # noqa: BLE001
             logger.warning("Could not remove monorepo root service node '%s': %s", service_name, exc)
 
-    # ── Link GQLType nodes to their Service via OWNS_TYPE ─────────────────
-    if _gql_type_service:
-        _GQLTYPE_BATCH = 200
-        for i in range(0, len(_gql_type_service), _GQLTYPE_BATCH):
-            rows = [
-                {"svc": svc, "type_name": type_name}
-                for svc, type_name in _gql_type_service[i:i + _GQLTYPE_BATCH]
-            ]
-            try:
-                graph.query(
-                    "UNWIND $rows AS row "
-                    "MATCH (t:GQLType {name: row.type_name}) "
-                    "MERGE (s:Service {name: row.svc}) ON CREATE SET s.repo = row.svc "
-                    "MERGE (s)-[:OWNS_TYPE]->(t) "
-                    "WITH s, t "
-                    "MATCH (s)-[ext:EXTENDS_TYPE]->(t) "
-                    "DELETE ext",
-                    {"rows": rows},
-                )
-            except Exception as exc:  # noqa: BLE001
-                msg = f"OWNS_TYPE batch {i}: {exc}"
-                logger.error(msg)
-                stats["errors"].append(msg)
+    # OWNS_TYPE / EXTENDS_TYPE are intentionally NOT exported here.
+    # graphql_rag (Apollo SDL ingest) is the sole source of truth for
+    # federation type ownership and must not be overwritten.
 
     logger.info(
         "FalkorDB export complete: %d nodes, %d edges, %d errors",
