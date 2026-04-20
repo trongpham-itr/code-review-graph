@@ -202,6 +202,63 @@ def compute_risk_score(store: GraphStore, node: GraphNode) -> float:
 # ---------------------------------------------------------------------------
 
 
+def find_deleted_api_implementations(store: GraphStore) -> list[dict[str, Any]]:
+    """Find resolver/datasource functions that implement APIs removed from schema.
+
+    Detects the pattern where a Query/Mutation/Subscription field was deleted
+    from the GraphQL schema but the resolver (and its datasource chain) still
+    exists in the codebase. These are flagged during graph build via the
+    RESOLVES_DELETED edge and GQLField(is_deleted=True).
+
+    Returns:
+        List of dicts with the deleted API field and its dangling implementation chain.
+    """
+    results: list[dict[str, Any]] = []
+
+    deleted_fields = [
+        n for n in store.get_nodes_by_kind(["GQLField"])
+        if (n.extra or {}).get("is_deleted") is True
+    ]
+
+    for field_node in deleted_fields:
+        resolvers: list[dict[str, Any]] = []
+        for edge in store.get_edges_by_target(field_node.qualified_name):
+            if edge.kind != "RESOLVES_DELETED":
+                continue
+            fn_node = store.get_node(edge.source_qualified)
+            if fn_node is None:
+                continue
+            # Follow DELEGATES_TO to find dangling datasource functions
+            datasource_fns: list[dict[str, Any]] = []
+            for ds_edge in store.get_edges_by_source(fn_node.qualified_name):
+                if ds_edge.kind != "DELEGATES_TO":
+                    continue
+                ds_node = store.get_node(ds_edge.target_qualified)
+                if ds_node:
+                    datasource_fns.append({
+                        "name": _sanitize_name(ds_node.name),
+                        "file": ds_node.file_path,
+                        "line": ds_node.line_start,
+                    })
+            resolvers.append({
+                "function": _sanitize_name(fn_node.name),
+                "file": fn_node.file_path,
+                "line": fn_node.line_start,
+                "datasource_functions": datasource_fns,
+            })
+
+        if resolvers:
+            results.append({
+                "api": f"{field_node.parent_name}.{field_node.name}",
+                "operation": (field_node.extra or {}).get("operation", "unknown"),
+                "schema_file": field_node.file_path,
+                "resolvers": resolvers,
+            })
+
+    logger.info("find_deleted_api_implementations: found %d deleted API(s) with live code", len(results))
+    return results
+
+
 def analyze_changes(
     store: GraphStore,
     changed_files: list[str],
@@ -275,6 +332,9 @@ def analyze_changes(
     # Review priorities: top 10 by risk score.
     review_priorities = sorted(node_risks, key=lambda x: x["risk_score"], reverse=True)[:10]
 
+    # Detect deleted API implementations (schema removed but code remains).
+    deleted_apis = find_deleted_api_implementations(store)
+
     # Build summary.
     summary_parts = [
         f"Analyzed {len(changed_files)} changed file(s):",
@@ -286,6 +346,11 @@ def analyze_changes(
     if test_gaps:
         gap_names = [g["name"] for g in test_gaps[:5]]
         summary_parts.append(f"  - Untested: {', '.join(gap_names)}")
+    if deleted_apis:
+        api_names = [d["api"] for d in deleted_apis[:5]]
+        summary_parts.append(
+            f"  - {len(deleted_apis)} deleted API(s) with live implementation: {', '.join(api_names)}"
+        )
 
     return {
         "summary": "\n".join(summary_parts),
@@ -294,4 +359,5 @@ def analyze_changes(
         "affected_flows": affected["affected_flows"],
         "test_gaps": test_gaps,
         "review_priorities": review_priorities,
+        "deleted_api_implementations": deleted_apis,
     }

@@ -276,27 +276,70 @@ def _extract_service(service_root: Path, schema_file: Path, store: GraphStore) -
                     )
                     stats["edges"] += 1
                 else:
-                    # RESOLVES / RESOLVES_EXTERNAL: Function → GQLField
+                    # RESOLVES / RESOLVES_EXTERNAL / RESOLVES_DELETED: Function → GQLField
                     # If the field exists in local schema → RESOLVES.
-                    # If not (federation-linked field from another service) →
-                    # create a synthetic placeholder GQLField (is_external=True)
-                    # and emit RESOLVES_EXTERNAL so the chain stays traversable.
+                    # If not, distinguish two cases:
+                    #   (A) Root operation type (Query/Mutation/Subscription) owns the field
+                    #       but field is missing from schema → API was deleted while
+                    #       implementation still exists → RESOLVES_DELETED (is_deleted=True)
+                    #   (B) Non-root type → federation-linked field from another service
+                    #       → RESOLVES_EXTERNAL (is_external=True)
+                    # Root types are never extended by other federation services, so
+                    # case (A) is unambiguous and safe to flag.
                     field_qn = f"{schema_path}::{type_name}.{field_key}"
                     if store.get_node(field_qn) is None:
-                        store.upsert_node(NodeInfo(
-                            kind="GQLField",
-                            name=field_key,
-                            file_path=schema_path,
-                            line_start=0,
-                            line_end=0,
-                            language="graphql",
-                            parent_name=type_name,
-                            extra={"is_external": True, "operation": "type_field"},
-                        ))
-                        store.upsert_edge(
-                            EdgeInfo(kind="RESOLVES_EXTERNAL", source=fn_qn, target=field_qn, file_path=file_path)
+                        # If the parent type exists in this service's schema but the field
+                        # does not → the field was deleted (or is a typo) while the resolver
+                        # remains.  This holds for both root types (Query/Mutation) and
+                        # custom types: if admin-api defines FacilityGroup, any resolver for
+                        # FacilityGroup.X that isn't in the schema belongs to admin-api's own
+                        # dead code — federation extensions are always resolved by the OTHER
+                        # service, never by the type-owning service itself.
+                        #
+                        # If the parent type is NOT in this service's schema at all → the
+                        # type belongs to another federation service → RESOLVES_EXTERNAL.
+                        parent_in_schema = type_name in gql_type_qn
+                        is_root_type = type_name in ("Query", "Mutation", "Subscription")
+                        op = (
+                            "query" if type_name == "Query"
+                            else "mutation" if type_name == "Mutation"
+                            else "subscription" if type_name == "Subscription"
+                            else "type_field"
                         )
-                        logger.debug("RESOLVES_EXTERNAL: %s → %s (federation field)", fn_qn, field_qn)
+
+                        if parent_in_schema:
+                            store.upsert_node(NodeInfo(
+                                kind="GQLField",
+                                name=field_key,
+                                file_path=schema_path,
+                                line_start=0,
+                                line_end=0,
+                                language="graphql",
+                                parent_name=type_name,
+                                extra={"is_deleted": True, "is_external": False, "operation": op},
+                            ))
+                            store.upsert_edge(
+                                EdgeInfo(kind="RESOLVES_DELETED", source=fn_qn, target=field_qn, file_path=file_path)
+                            )
+                            logger.warning(
+                                "RESOLVES_DELETED: %s → %s.%s (field removed from schema, implementation remains)",
+                                fn_qn, type_name, field_key,
+                            )
+                        else:
+                            store.upsert_node(NodeInfo(
+                                kind="GQLField",
+                                name=field_key,
+                                file_path=schema_path,
+                                line_start=0,
+                                line_end=0,
+                                language="graphql",
+                                parent_name=type_name,
+                                extra={"is_external": True, "is_deleted": False, "operation": op},
+                            ))
+                            store.upsert_edge(
+                                EdgeInfo(kind="RESOLVES_EXTERNAL", source=fn_qn, target=field_qn, file_path=file_path)
+                            )
+                            logger.debug("RESOLVES_EXTERNAL: %s → %s (federation field, type not in local schema)", fn_qn, field_qn)
                     else:
                         store.upsert_edge(
                             EdgeInfo(kind="RESOLVES", source=fn_qn, target=field_qn, file_path=file_path)
