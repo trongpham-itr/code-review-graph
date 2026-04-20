@@ -93,6 +93,16 @@ _EDGE_ALIASES: dict[str, str] = {
 }
 
 
+def _relativize_path(file_path: str | None, monorepo_root: Path) -> str:
+    """Strip monorepo_root prefix from file_path, return relative path string."""
+    if not file_path:
+        return ""
+    try:
+        return str(Path(file_path).relative_to(monorepo_root))
+    except ValueError:
+        return file_path
+
+
 def _flatten_extra(extra: dict | None) -> dict:
     """Flatten extra dict into scalar-only properties safe for Cypher."""
     if not extra:
@@ -209,10 +219,27 @@ def export_to_falkordb(
                 else service_name
             )
 
+            # Relativize qualified_name:
+            # - File nodes: qualified_name IS the file path
+            # - Other nodes: qualified_name is "{abs_file_path}::{symbol}" — relativize only the prefix
+            if node.kind == "File":
+                _rel_qn = _relativize_path(node.qualified_name, monorepo_root)
+            elif "::" in (node.qualified_name or ""):
+                _prefix, _suffix = node.qualified_name.split("::", 1)
+                _rel_qn = f"{_relativize_path(_prefix, monorepo_root)}::{_suffix}"
+            else:
+                _rel_qn = node.qualified_name
+
+            _rel_name = (
+                _relativize_path(node.name, monorepo_root)
+                if node.kind == "File"
+                else node.name
+            )
+
             base_props: dict[str, Any] = {
-                "qualified_name": node.qualified_name,
-                "name": node.name,
-                "file_path": node.file_path or "",
+                "qualified_name": _rel_qn,
+                "name": _rel_name,
+                "file_path": _relativize_path(node.file_path, monorepo_root),
                 "language": node.language or "",
                 "line_start": node.line_start or 0,
                 "line_end": node.line_end or 0,
@@ -245,7 +272,7 @@ def export_to_falkordb(
                 gql_fields.append(base_props)
 
             else:
-                qn_to_key[node.qualified_name] = node.qualified_name
+                qn_to_key[node.qualified_name] = _rel_qn
                 safe_label = node.kind.replace("-", "_")
                 other_nodes.append((safe_label, base_props))
 
@@ -349,9 +376,7 @@ def export_to_falkordb(
             by_kind.setdefault(edge.kind, []).append({
                 "src": src_key,
                 "tgt": tgt_key,
-                "src_qn": edge.source_qualified,
-                "tgt_qn": edge.target_qualified,
-                "file_path": edge.file_path or "",
+                "file_path": _relativize_path(edge.file_path, monorepo_root),
                 "line": edge.line or 0,
             })
 
@@ -365,11 +390,11 @@ def export_to_falkordb(
                     f"UNWIND $rows AS row "
                     f"OPTIONAL MATCH (a1:GQLField  {{key:            row.src}}) "
                     f"OPTIONAL MATCH (a2:GQLType   {{name:           row.src}}) "
-                    f"OPTIONAL MATCH (a3:Node       {{qualified_name: row.src_qn}}) "
+                    f"OPTIONAL MATCH (a3:Node       {{qualified_name: row.src}}) "
                     f"WITH row, coalesce(a1, a2, a3) AS a "
                     f"OPTIONAL MATCH (b1:GQLField  {{key:            row.tgt}}) "
                     f"OPTIONAL MATCH (b2:GQLType   {{name:           row.tgt}}) "
-                    f"OPTIONAL MATCH (b3:Node       {{qualified_name: row.tgt_qn}}) "
+                    f"OPTIONAL MATCH (b3:Node       {{qualified_name: row.tgt}}) "
                     f"WITH row, a, coalesce(b1, b2, b3) AS b "
                     f"WHERE a IS NOT NULL AND b IS NOT NULL "
                     f"MERGE (a)-[r:{safe_kind}]->(b) "
