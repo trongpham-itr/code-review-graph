@@ -155,9 +155,13 @@ def export_to_falkordb(
     service_name = _repo_resolver.get(repo_folder, repo_folder)
     logger.info("Resolved repo '%s' → service '%s'", repo_folder, service_name)
 
-    # Detect monorepo: resolver has sub-folder entries resolving to different names
+    # Detect monorepo: only consider sub-folders that actually exist under monorepo_root.
+    # Checking all entries in _repo_resolver (which covers the entire system) would
+    # incorrectly mark every single-service repo as a monorepo, causing file nodes to
+    # receive repo="src" instead of the canonical service name, breaking BELONGS_TO links.
     _is_monorepo = any(
-        _resolve_service_from_file_path(
+        (monorepo_root / folder).is_dir()
+        and _resolve_service_from_file_path(
             str(monorepo_root / folder), monorepo_root, _repo_resolver, service_name
         ) != service_name
         for folder in _repo_resolver
@@ -200,6 +204,7 @@ def export_to_falkordb(
     # nodes (Function, File, GQLField resolvers, etc.) and must not overwrite
     # ownership edges set by graphql_rag.
     _gql_type_service: list[tuple[str, str]] = []  # kept for BELONGS_TO service discovery only
+    _all_node_services: set[str] = set()  # all service names seen across File nodes
 
     # ── Export nodes ───────────────────────────────────────────────────────
     for i in range(0, len(all_nodes), _NODE_BATCH):
@@ -253,6 +258,11 @@ def export_to_falkordb(
             if node.params:
                 base_props["params"] = node.params
             base_props.update(_flatten_extra(node.extra))
+
+            # Track all service names from File nodes for BELONGS_TO linking.
+            # This ensures non-GQL services (pure gRPC/SQS) also get linked.
+            if node.kind == "File" and node_service:
+                _all_node_services.add(node_service)
 
             if node.kind == "GQLType":
                 # Unified key = name (global across federation)
@@ -408,9 +418,10 @@ def export_to_falkordb(
                 stats["errors"].append(msg)
 
     # ── Link File nodes to their Service node via BELONGS_TO ──────────────
-    all_services: set[str] = {service_name}
-    if _is_monorepo:
-        all_services.update(svc for svc, _ in _gql_type_service)
+    # Use all service names observed from File nodes so non-GQL services
+    # (pure gRPC/SQS with no GQLType nodes) are also linked correctly.
+    all_services: set[str] = _all_node_services or {service_name}
+    all_services.update(svc for svc, _ in _gql_type_service)
 
     for svc in all_services:
         try:
