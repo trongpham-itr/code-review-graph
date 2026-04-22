@@ -903,3 +903,170 @@ class TestSpreadMutationService:
         assert any(e.kind == "RESOLVES" for e in edges), (
             "Existing query resolver should still produce RESOLVES edges"
         )
+
+
+# ---------------------------------------------------------------------------
+# Deleted API detection (RESOLVES_DELETED)
+# ---------------------------------------------------------------------------
+
+
+def _make_deleted_api_service(base: Path) -> Path:
+    """Service where Mutation.deleteOrder exists in resolver but NOT in schema."""
+    base.mkdir(parents=True, exist_ok=True)
+
+    # Schema: deleteOrder is absent — it was removed
+    (base / ".schema.gql").write_text(
+        """
+type Query {
+  orders: [String]
+}
+type Mutation {
+  createOrder(input: String): Boolean
+}
+""",
+        encoding="utf-8",
+    )
+
+    resolvers_dir = base / "app" / "resolvers"
+    resolvers_dir.mkdir(parents=True)
+    (resolvers_dir / "index.js").write_text(
+        "const mut = require('./mutation');\nmodule.exports = { Mutation: mut };\n",
+        encoding="utf-8",
+    )
+    # Resolver still has deleteOrder — dead implementation
+    (resolvers_dir / "mutation.js").write_text(
+        """
+async function createOrder(parent, args, { dataSources }) {
+  return dataSources.createOrder(args.input);
+}
+async function deleteOrder(parent, args, { dataSources }) {
+  return dataSources.deleteOrder(args.id);
+}
+module.exports = { createOrder, deleteOrder };
+""",
+        encoding="utf-8",
+    )
+    return base
+
+
+class TestDeletedApiDetection:
+    @pytest.fixture()
+    def store(self, tmp_path):
+        from code_review_graph.graph import GraphStore
+        db_path = tmp_path / "graph.db"
+        s = GraphStore(str(db_path))
+        yield s
+        s.close()
+
+    @pytest.fixture()
+    def svc(self, tmp_path):
+        return _make_deleted_api_service(tmp_path / "order_api")
+
+    def test_resolves_deleted_edge_created(self, svc, store):
+        extract_graphql_for_repo(svc.parent, store)
+        resolver_path = str(svc / "app" / "resolvers" / "mutation.js")
+        edges = store.get_edges_by_source(f"{resolver_path}::deleteOrder")
+        assert any(e.kind == "RESOLVES_DELETED" for e in edges), (
+            "RESOLVES_DELETED edge should be created for deleteOrder (removed from schema)"
+        )
+
+    def test_deleted_field_node_flagged(self, svc, store):
+        extract_graphql_for_repo(svc.parent, store)
+        schema_path = str(svc / ".schema.gql")
+        field_qn = f"{schema_path}::Mutation.deleteOrder"
+        node = store.get_node(field_qn)
+        assert node is not None, "Synthetic GQLField node should be created"
+        assert node.extra.get("is_deleted") is True
+        assert node.extra.get("is_external") is False
+
+    def test_existing_mutation_still_resolves(self, svc, store):
+        extract_graphql_for_repo(svc.parent, store)
+        resolver_path = str(svc / "app" / "resolvers" / "mutation.js")
+        edges = store.get_edges_by_source(f"{resolver_path}::createOrder")
+        assert any(e.kind == "RESOLVES" for e in edges), (
+            "createOrder (still in schema) should produce RESOLVES, not RESOLVES_DELETED"
+        )
+
+    def test_no_resolves_deleted_for_in_schema_field(self, svc, store):
+        extract_graphql_for_repo(svc.parent, store)
+        resolver_path = str(svc / "app" / "resolvers" / "mutation.js")
+        edges = store.get_edges_by_source(f"{resolver_path}::createOrder")
+        assert not any(e.kind == "RESOLVES_DELETED" for e in edges), (
+            "createOrder should NOT be flagged as deleted"
+        )
+
+
+def _make_custom_type_deleted_field_service(base: Path) -> Path:
+    """Service where FacilityGroup (custom type with @key) has a resolver
+    for a field that no longer exists in the schema."""
+    base.mkdir(parents=True, exist_ok=True)
+
+    (base / ".schema.gql").write_text(
+        """
+type Query { facilityGroup(id: ID!): FacilityGroup }
+type FacilityGroup @key(fields: "id") {
+  id: ID!
+  name: String
+  callCenterTechnicianGroups: [String]
+}
+""",
+        encoding="utf-8",
+    )
+
+    resolvers_dir = base / "app" / "resolvers"
+    resolvers_dir.mkdir(parents=True)
+    (resolvers_dir / "index.js").write_text(
+        "const fg = require('./facilityGroup');\nmodule.exports = { FacilityGroup: fg };\n",
+        encoding="utf-8",
+    )
+    # callCenterTechnicianGroup (singular) has no match in schema
+    (resolvers_dir / "facilityGroup.js").write_text(
+        """
+async function callCenterTechnicianGroups(parent, args, { loaders }) {
+  return loaders.groups.load(parent.id);
+}
+async function callCenterTechnicianGroup(parent, args, { loaders }) {
+  return loaders.groups.load(parent.id);
+}
+module.exports = { callCenterTechnicianGroups, callCenterTechnicianGroup };
+""",
+        encoding="utf-8",
+    )
+    return base
+
+
+class TestDeletedApiCustomType:
+    @pytest.fixture()
+    def store(self, tmp_path):
+        from code_review_graph.graph import GraphStore
+        s = GraphStore(str(tmp_path / "graph.db"))
+        yield s
+        s.close()
+
+    @pytest.fixture()
+    def svc(self, tmp_path):
+        return _make_custom_type_deleted_field_service(tmp_path / "admin_api")
+
+    def test_singular_field_flagged_as_deleted(self, svc, store):
+        extract_graphql_for_repo(svc.parent, store)
+        resolver_path = str(svc / "app" / "resolvers" / "facilityGroup.js")
+        edges = store.get_edges_by_source(f"{resolver_path}::callCenterTechnicianGroup")
+        assert any(e.kind == "RESOLVES_DELETED" for e in edges), (
+            "callCenterTechnicianGroup (not in schema) should be RESOLVES_DELETED"
+        )
+
+    def test_plural_field_resolves_normally(self, svc, store):
+        extract_graphql_for_repo(svc.parent, store)
+        resolver_path = str(svc / "app" / "resolvers" / "facilityGroup.js")
+        edges = store.get_edges_by_source(f"{resolver_path}::callCenterTechnicianGroups")
+        assert any(e.kind == "RESOLVES" for e in edges), (
+            "callCenterTechnicianGroups (in schema) should be RESOLVES"
+        )
+
+    def test_deleted_node_is_not_external(self, svc, store):
+        extract_graphql_for_repo(svc.parent, store)
+        schema_path = str(svc / ".schema.gql")
+        node = store.get_node(f"{schema_path}::FacilityGroup.callCenterTechnicianGroup")
+        assert node is not None
+        assert node.extra.get("is_deleted") is True
+        assert node.extra.get("is_external") is False
