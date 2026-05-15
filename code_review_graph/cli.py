@@ -449,8 +449,10 @@ def main() -> None:
         "--graph-name", required=_unified is None, dest="graph_name", default=_unified,
         help="FalkorDB graph name to create / update (or set FALKORDB_UNIFIED_GRAPH env var)",
     )
-    falkor_cmd.add_argument("--host", default="localhost", help="FalkorDB host (default: localhost)")
-    falkor_cmd.add_argument("--port", type=int, default=6379, help="FalkorDB port (default: 6379)")
+    _host = os.getenv("FALKORDB_HOST", "localhost")
+    _port_str = os.getenv("FALKORDB_PORT", "6379")
+    falkor_cmd.add_argument("--host", default=_host, help="FalkorDB host (default: FALKORDB_HOST env or localhost)")
+    falkor_cmd.add_argument("--port", type=int, default=int(_port_str), help="FalkorDB port (default: FALKORDB_PORT env or 6379)")
     falkor_cmd.add_argument("--password", default=None, help="Redis AUTH password (optional)")
 
     # detect-changes
