@@ -149,7 +149,10 @@ def export_to_falkordb(
     stats = {"nodes_written": 0, "edges_written": 0, "errors": []}
 
     # ── Resolve canonical service name ─────────────────────────────────────
-    monorepo_root = store.db_path.parent.parent.resolve()
+    # Prefer repo_root stored during `build` — CRG_DATA_DIR can move the DB
+    # outside the repos directory, making db_path.parent.parent wrong.
+    _stored_root = store.get_metadata("repo_root")
+    monorepo_root = Path(_stored_root).resolve() if _stored_root else store.db_path.parent.parent.resolve()
     repo_folder = monorepo_root.name
     _repo_resolver = _load_repo_resolver()
     service_name = _repo_resolver.get(repo_folder, repo_folder)
@@ -318,6 +321,7 @@ def export_to_falkordb(
                     "UNWIND $rows AS row "
                     "MERGE (n:GQLField {key: row.key}) "
                     "SET n.qualified_name = row.qualified_name, "
+                    "    n.name           = row.name, "
                     "    n.file_path      = row.file_path, "
                     "    n.language       = row.language, "
                     "    n.line_start     = row.line_start, "

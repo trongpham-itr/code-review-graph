@@ -566,6 +566,7 @@ def full_build(
 
     store.set_metadata("last_updated", time.strftime("%Y-%m-%dT%H:%M:%S"))
     store.set_metadata("last_build_type", "full")
+    store.set_metadata("repo_root", str(repo_root.resolve()))
     branch, sha = _git_branch_info(repo_root)
     if branch:
         store.set_metadata("git_branch", branch)
@@ -695,6 +696,7 @@ def incremental_update(
 
     store.set_metadata("last_updated", time.strftime("%Y-%m-%dT%H:%M:%S"))
     store.set_metadata("last_build_type", "incremental")
+    store.set_metadata("repo_root", str(repo_root.resolve()))
     branch, sha = _git_branch_info(repo_root)
     if branch:
         store.set_metadata("git_branch", branch)
