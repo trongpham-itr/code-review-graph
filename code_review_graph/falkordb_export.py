@@ -328,11 +328,11 @@ def export_to_falkordb(
                     "    n.line_end       = row.line_end, "
                     "    n.repo           = row.repo, "
                     "    n.kind           = 'GQLField', "
-                    "    n.is_deleted     = row.is_deleted, "
-                    "    n.is_external    = row.is_external, "
-                    "    n.operation      = row.operation, "
-                    "    n.auth           = row.auth, "
-                    "    n.directives     = row.directives ",
+                    "    n.is_deleted     = COALESCE(row.is_deleted,  n.is_deleted), "
+                    "    n.is_external    = COALESCE(row.is_external, n.is_external), "
+                    "    n.operation      = COALESCE(row.operation,   n.operation), "
+                    "    n.auth           = COALESCE(row.auth,        n.auth), "
+                    "    n.directives     = COALESCE(row.directives,  n.directives) ",
                     {"rows": gql_fields},
                 )
                 stats["nodes_written"] += len(gql_fields)
