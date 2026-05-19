@@ -482,6 +482,22 @@ def export_to_falkordb(
             logger.error(msg)
             stats["errors"].append(msg)
 
+    # Remove fully-isolated Service nodes — no edges in any direction.
+    # Real external services (admin-api, AWS LAMBDA, etc.) always have at least
+    # one edge (HTTP_CALLS, LAMBDA_CALLS, …) so this only catches stale
+    # ghost nodes from a previous build run (e.g. .code-review-graph).
+    try:
+        orphan_result = graph.query(
+            "MATCH (s:Service) WHERE NOT (s)-[]-() RETURN s.name"
+        )
+        orphan_names = [row[0] for row in orphan_result.result_set if row[0]]
+        if orphan_names:
+            logger.info("Reconcile: removing %d isolated Service node(s): %s", len(orphan_names), orphan_names)
+            graph.query("MATCH (s:Service) WHERE NOT (s)-[]-() DETACH DELETE s")
+            stats["nodes_deleted"] += len(orphan_names)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not remove isolated Service nodes: %s", exc)
+
     # Remove bare monorepo-root Service node (e.g. 'be-repos') — not a real service
     if _is_monorepo and service_name not in _repo_resolver.values():
         try:
