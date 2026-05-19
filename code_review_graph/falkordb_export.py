@@ -40,18 +40,17 @@ logger = logging.getLogger(__name__)
 def _load_repo_resolver() -> dict[str, str]:
     """Build repo_folder → canonical_service_name lookup from gh_repo_w_service_name.json."""
     env_path = os.getenv("GH_REPO_MAPPING_FILE")
-    candidates = [Path(env_path)] if env_path else []
-    for parent in [Path(os.getcwd()), *Path(os.getcwd()).parents]:
-        candidates.append(parent / "scripts" / "repo" / "gh_repo_w_service_name.json")
-    for path in candidates:
-        if path.exists():
-            data = json.loads(path.read_text())
-            return {
-                repo_key: entry["name"]
-                for repo_key, entry in data.items()
-                if entry.get("name")
-            }
-    return {}
+    if not env_path:
+        return {}
+    path = Path(env_path)
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text())
+    return {
+        repo_key: entry["name"]
+        for repo_key, entry in data.items()
+        if entry.get("name")
+    }
 
 
 def _resolve_service_from_file_path(
