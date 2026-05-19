@@ -38,18 +38,18 @@ logger = logging.getLogger(__name__)
 
 
 def _load_repo_resolver() -> dict[str, str]:
-    """Build repo_folder → canonical_service_name lookup from service-map-name.json."""
-    env_path = os.getenv("SERVICE_MAP_NAME_PATH")
+    """Build repo_folder → canonical_service_name lookup from gh_repo_w_service_name.json."""
+    env_path = os.getenv("GH_REPO_MAPPING_FILE")
     candidates = [Path(env_path)] if env_path else []
     for parent in [Path(os.getcwd()), *Path(os.getcwd()).parents]:
-        candidates.append(parent / "scripts" / "repo" / "service-map-name.json")
+        candidates.append(parent / "scripts" / "repo" / "gh_repo_w_service_name.json")
     for path in candidates:
         if path.exists():
             data = json.loads(path.read_text())
             return {
-                v["repo"]: k
-                for k, v in data.get("services", {}).items()
-                if v.get("repo")
+                repo_key: entry["name"]
+                for repo_key, entry in data.items()
+                if entry.get("name")
             }
     return {}
 
