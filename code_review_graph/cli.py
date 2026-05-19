@@ -252,7 +252,6 @@ def _handle_init(args: argparse.Namespace) -> None:
 
 def main() -> None:
     """Main CLI entry point."""
-    print('Hello World - Editing by PDT')
     ap = argparse.ArgumentParser(
         prog="code-review-graph",
         description="Persistent incremental knowledge graph for code reviews",
@@ -454,6 +453,7 @@ def main() -> None:
     falkor_cmd.add_argument("--host", default=_host, help="FalkorDB host (default: FALKORDB_HOST env or localhost)")
     falkor_cmd.add_argument("--port", type=int, default=int(_port_str), help="FalkorDB port (default: FALKORDB_PORT env or 6379)")
     falkor_cmd.add_argument("--password", default=None, help="Redis AUTH password (optional)")
+    falkor_cmd.add_argument("--service-name", default=None, dest="service_name", help="Override canonical service name (avoids using temp directory names)")
 
     # detect-changes
     detect_cmd = sub.add_parser("detect-changes", help="Analyze change impact")
@@ -752,6 +752,7 @@ def main() -> None:
                 host=args.host,
                 port=args.port,
                 password=args.password,
+                service_name_override=args.service_name,
             )
             print(
                 f"FalkorDB export '{args.graph_name}': "

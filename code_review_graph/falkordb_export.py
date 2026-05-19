@@ -121,6 +121,7 @@ def export_to_falkordb(
     host: str = "localhost",
     port: int = 6379,
     password: str | None = None,
+    service_name_override: str | None = None,
 ) -> dict:
     """Export all nodes and edges from *store* into a FalkorDB graph.
 
@@ -154,7 +155,7 @@ def export_to_falkordb(
     monorepo_root = Path(_stored_root).resolve() if _stored_root else store.db_path.parent.parent.resolve()
     repo_folder = monorepo_root.name
     _repo_resolver = _load_repo_resolver()
-    service_name = _repo_resolver.get(repo_folder, repo_folder)
+    service_name = service_name_override or _repo_resolver.get(repo_folder, repo_folder)
     logger.info("Resolved repo '%s' → service '%s'", repo_folder, service_name)
 
     # Detect monorepo: only consider sub-folders that actually exist under monorepo_root.
