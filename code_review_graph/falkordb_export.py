@@ -209,6 +209,10 @@ def export_to_falkordb(
     _gql_type_service: list[tuple[str, str]] = []  # kept for BELONGS_TO service discovery only
     _all_node_services: set[str] = set()  # all service names seen across File nodes
 
+    # Relativized qualified_names of :Node nodes exported this run — used by
+    # the reconcile step to identify stale nodes that no longer exist in source.
+    _exported_node_qns: set[str] = set()
+
     # ── Export nodes ───────────────────────────────────────────────────────
     for i in range(0, len(all_nodes), _NODE_BATCH):
         batch = all_nodes[i:i + _NODE_BATCH]
@@ -288,6 +292,7 @@ def export_to_falkordb(
                 qn_to_key[node.qualified_name] = _rel_qn
                 safe_label = node.kind.replace("-", "_")
                 other_nodes.append((safe_label, base_props))
+                _exported_node_qns.add(_rel_qn)
 
         # Export GQLType — MERGE on name, SET qualified_name + code props
         if gql_types:
@@ -444,6 +449,39 @@ def export_to_falkordb(
             logger.error(msg)
             stats["errors"].append(msg)
 
+    # ── Reconcile: delete stale :Node nodes (files/functions removed from source) ──
+    # Any :Node with qualified_name NOT in _exported_node_qns but belonging to the
+    # current repo(s) is stale — its source file was deleted or the symbol removed.
+    stats["nodes_deleted"] = 0
+    for svc in all_services:
+        try:
+            result = graph.query(
+                "MATCH (n:Node {repo: $svc}) RETURN n.qualified_name",
+                {"svc": svc},
+            )
+            stale_qns = [
+                row[0]
+                for row in result.result_set
+                if row[0] and row[0] not in _exported_node_qns
+            ]
+            if stale_qns:
+                logger.info(
+                    "Reconcile: deleting %d stale nodes for service '%s'",
+                    len(stale_qns), svc,
+                )
+                for j in range(0, len(stale_qns), _NODE_BATCH):
+                    graph.query(
+                        "UNWIND $qns AS qn "
+                        "MATCH (n:Node {qualified_name: qn}) "
+                        "DETACH DELETE n",
+                        {"qns": stale_qns[j:j + _NODE_BATCH]},
+                    )
+                stats["nodes_deleted"] += len(stale_qns)
+        except Exception as exc:  # noqa: BLE001
+            msg = f"Reconcile for service '{svc}': {exc}"
+            logger.error(msg)
+            stats["errors"].append(msg)
+
     # Remove bare monorepo-root Service node (e.g. 'be-repos') — not a real service
     if _is_monorepo and service_name not in _repo_resolver.values():
         try:
@@ -456,7 +494,8 @@ def export_to_falkordb(
     # federation type ownership and must not be overwritten.
 
     logger.info(
-        "FalkorDB export complete: %d nodes, %d edges, %d errors",
-        stats["nodes_written"], stats["edges_written"], len(stats["errors"]),
+        "FalkorDB export complete: %d nodes, %d edges, %d deleted, %d errors",
+        stats["nodes_written"], stats["edges_written"],
+        stats.get("nodes_deleted", 0), len(stats["errors"]),
     )
     return stats
