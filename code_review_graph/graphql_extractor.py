@@ -73,12 +73,34 @@ def extract_graphql_for_repo(repo_root: Path, store: GraphStore) -> dict:
     """Scan *repo_root* for GraphQL services and extract nodes/edges into *store*.
 
     A "GraphQL service" is any directory that contains a ``.schema.gql`` file
-    at its root level.
+    at its root level. Only scans .schema.gql files within configured FC_SCAN_DIRS.
 
     Returns a stats dict with keys:
         services, gql_types, gql_fields, loaders, edges, errors
     """
-    schema_files = list(repo_root.rglob(".schema.gql"))
+    # Import here to avoid circular dependency with incremental.py
+    from .incremental import _get_scan_roots, _has_nested_skip_dir, _is_in_scan_roots
+
+    scan_roots = _get_scan_roots(repo_root)
+
+    # Get all .schema.gql files and filter by scan roots
+    # .schema.gql at root (e.g., "project/.schema.gql") is always allowed
+    # since it's service config, not source code in a subdirectory
+    schema_files = []
+    for f in repo_root.rglob(".schema.gql"):
+        rel_path = str(f.relative_to(repo_root))
+        # Allow .schema.gql at root level (no path separators)
+        is_root_schema = "/" not in rel_path and "\\" not in rel_path
+        if is_root_schema:
+            schema_files.append(f)
+            continue
+        # For nested .schema.gql, apply same filters as collect_all_files
+        if not _is_in_scan_roots(rel_path, scan_roots, repo_root):
+            continue
+        if _has_nested_skip_dir(rel_path):
+            continue
+        schema_files.append(f)
+
     if not schema_files:
         return {"services": 0, "gql_types": 0, "gql_fields": 0, "loaders": 0, "edges": 0, "errors": []}
 

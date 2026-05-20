@@ -71,6 +71,48 @@ DEFAULT_IGNORE_PATTERNS = [
     "*.db-wal",
 ]
 
+_FC_SCAN_DIRS_DEFAULT = "src,app,lib,internal,pkg,cmd"
+_NESTED_SKIP_DIRS = {
+    "__tests__",
+    "tests",
+    "test",
+    "testdata",
+    "node_modules",
+    "vendor",
+    "dist",
+    "build",
+    "__pycache__",
+}
+
+
+def _get_scan_roots(repo_root: Path) -> list[Path]:
+    """Resolve allowed scan roots from FC_SCAN_DIRS under repo_root."""
+    scan_dirs_env = os.getenv("FC_SCAN_DIRS", _FC_SCAN_DIRS_DEFAULT)
+    scan_dirs = {d.strip() for d in scan_dirs_env.split(",") if d.strip()}
+    return [repo_root / d for d in scan_dirs if (repo_root / d).is_dir()]
+
+
+def _is_in_scan_roots(rel_path: str, scan_roots: list[Path], repo_root: Path) -> bool:
+    """Return True when rel_path is inside one of configured scan roots.
+
+    If no roots exist in the repository, allow all paths (backward-compatible).
+    """
+    if not scan_roots:
+        return True
+    full_path = (repo_root / rel_path).resolve()
+    for root in scan_roots:
+        try:
+            full_path.relative_to(root.resolve())
+            return True
+        except ValueError:
+            continue
+    return False
+
+
+def _has_nested_skip_dir(rel_path: str) -> bool:
+    """Return True if any path segment is in the nested skip set."""
+    return any(part in _NESTED_SKIP_DIRS for part in PurePosixPath(rel_path).parts)
+
 
 def find_repo_root(start: Path | None = None) -> Optional[Path]:
     """Walk up from start to find the nearest .git directory."""
@@ -378,6 +420,7 @@ def collect_all_files(
             When *None*, falls back to ``CRG_RECURSE_SUBMODULES`` env var.
     """
     ignore_patterns = _load_ignore_patterns(repo_root)
+    scan_roots = _get_scan_roots(repo_root)
     parser = CodeParser()
     files = []
 
@@ -394,6 +437,10 @@ def collect_all_files(
         ]
 
     for rel_path in candidates:
+        if not _is_in_scan_roots(rel_path, scan_roots, repo_root):
+            continue
+        if _has_nested_skip_dir(rel_path):
+            continue
         if _should_ignore(rel_path, ignore_patterns):
             continue
         full_path = repo_root / rel_path
@@ -592,6 +639,7 @@ def incremental_update(
     """Incremental update: re-parse changed + dependent files only."""
     parser = CodeParser()
     ignore_patterns = _load_ignore_patterns(repo_root)
+    scan_roots = _get_scan_roots(repo_root)
 
     # Determine changed files
     if changed_files is None:
@@ -606,6 +654,22 @@ def incremental_update(
             "dependent_files": [],
         }
 
+    # Keep only changed files inside configured scan roots.
+    changed_files = [
+        f for f in changed_files
+        if _is_in_scan_roots(f, scan_roots, repo_root) and not _has_nested_skip_dir(f)
+    ]
+
+    if not changed_files:
+        return {
+            "files_updated": 0,
+            "total_nodes": 0,
+            "total_edges": 0,
+            "changed_files": [],
+            "dependent_files": [],
+            "errors": [],
+        }
+
     # Find dependent files (files that import from changed files)
     dependent_files: set[str] = set()
     for rel_path in changed_files:
@@ -614,9 +678,12 @@ def incremental_update(
         for d in deps:
             # Convert back to relative path if needed
             try:
-                dependent_files.add(str(Path(d).relative_to(repo_root)))
+                dep_rel = str(Path(d).relative_to(repo_root))
+                if _is_in_scan_roots(dep_rel, scan_roots, repo_root) and not _has_nested_skip_dir(dep_rel):
+                    dependent_files.add(dep_rel)
             except ValueError:
-                dependent_files.add(d)
+                if _is_in_scan_roots(d, scan_roots, repo_root) and not _has_nested_skip_dir(d):
+                    dependent_files.add(d)
 
     # Combine changed + dependent
     all_files = set(changed_files) | dependent_files
@@ -629,6 +696,10 @@ def incremental_update(
     to_parse: list[str] = []
     removed_any = False
     for rel_path in all_files:
+        if not _is_in_scan_roots(rel_path, scan_roots, repo_root):
+            continue
+        if _has_nested_skip_dir(rel_path):
+            continue
         if _should_ignore(rel_path, ignore_patterns):
             continue
         abs_path = repo_root / rel_path
@@ -843,5 +914,4 @@ def watch(repo_root: Path, store: GraphStore) -> None:
         observer.stop()
     observer.join()
     logger.info("Watch stopped.")
-
 
