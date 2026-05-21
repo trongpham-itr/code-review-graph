@@ -31,6 +31,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -147,6 +148,7 @@ def export_to_falkordb(
     graph = client.select_graph(graph_name)
 
     stats = {"nodes_written": 0, "edges_written": 0, "errors": []}
+    _now = int(time.time())
 
     # ── Resolve canonical service name ─────────────────────────────────────
     # Prefer repo_root stored during `build` — CRG_DATA_DIR can move the DB
@@ -257,6 +259,7 @@ def export_to_falkordb(
                 "line_end": node.line_end or 0,
                 "is_test": bool(node.is_test),
                 "repo": node_service,
+                "updated_at": _now,
             }
             if node.parent_name:
                 base_props["parent_name"] = node.parent_name
@@ -333,6 +336,7 @@ def export_to_falkordb(
                     "    n.line_end       = row.line_end, "
                     "    n.repo           = row.repo, "
                     "    n.kind           = 'GQLField', "
+                    "    n.updated_at     = row.updated_at, "
                     "    n.is_deleted     = COALESCE(row.is_deleted,  n.is_deleted), "
                     "    n.is_external    = COALESCE(row.is_external, n.is_external), "
                     "    n.operation      = COALESCE(row.operation,   n.operation), "
@@ -435,8 +439,10 @@ def export_to_falkordb(
     for svc in all_services:
         try:
             graph.query(
-                "MERGE (s:Service {name: $svc}) ON CREATE SET s.repo = $svc",
-                {"svc": svc},
+                "MERGE (s:Service {name: $svc}) "
+                "ON CREATE SET s.repo = $svc "
+                "SET s.updated_at = $now",
+                {"svc": svc, "now": _now},
             )
             graph.query(
                 "MATCH (f:Node:File {repo: $svc}) "
