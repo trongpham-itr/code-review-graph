@@ -28,6 +28,7 @@ from graphql.language import ast as gql_ast
 
 from .graph import GraphStore
 from .parser import EdgeInfo, NodeInfo
+from .utils import _get_scan_roots, _has_nested_skip_dir, _is_in_scan_roots
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +79,6 @@ def extract_graphql_for_repo(repo_root: Path, store: GraphStore) -> dict:
     Returns a stats dict with keys:
         services, gql_types, gql_fields, loaders, edges, errors
     """
-    # Import here to avoid circular dependency with incremental.py
-    from .incremental import _get_scan_roots, _has_nested_skip_dir, _is_in_scan_roots
-
     scan_roots = _get_scan_roots(repo_root)
 
     # Get all .schema.gql files and filter by scan roots
