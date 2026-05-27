@@ -16,6 +16,7 @@ _NESTED_SKIP_DIRS = {
     "dist",
     "build",
     "__pycache__",
+    "specs",
 }
 
 
