@@ -12,13 +12,13 @@ The exporter reads nodes and edges from the local SQLite graph store and
 writes them into a FalkorDB graph using Cypher MERGE statements so the
 command is safe to re-run (idempotent).
 
-Node labels match GraphStore kinds: File, Function, Class, Type, Test,
-GQLType, GQLField, Loader.
+Node labels on FalkorDB: GQLType, GQLField (unchanged),
+Code{Kind} for code nodes — CodeFile, CodeFunction, CodeClass, CodeLoader, CodeTest.
 
-Edge relationship types match GraphStore kinds: CALLS, IMPORTS_FROM,
-INHERITS, CONTAINS, TESTED_BY, DEPENDS_ON, REFERENCES, FIELD_OF, RETURNS,
-ACCEPTS, RESOLVES, RESOLVES_EXTERNAL, RESOLVES_REF, DELEGATES_TO,
-USES_LOADER, BACKED_BY.
+Edge relationship types on FalkorDB (see _EDGE_ALIASES for full mapping):
+CODE_CONTAINS, CODE_CALLS, CODE_IMPORTS_FROM, CODE_REFERENCES, CODE_TESTED_BY, CODE_BELONGS_TO,
+GQL_RESOLVES, GQL_RESOLVES_EXTERNAL, GQL_RESOLVES_REF, GQL_RESOLVES_DELETED,
+GQL_OF_TYPE, GQL_RETURNS_TYPE, GQL_USES_INPUT_TYPE, GQL_USES_LOADER, GQL_BACKED_BY, GQL_DELEGATES_TO.
 
 Unified key strategy (no SAME_AS):
   GQLType  → primary key = ``name``  (global across federation)
@@ -81,11 +81,10 @@ def _resolve_service_from_file_path(
 _NODE_BATCH = 200
 _EDGE_BATCH = 500
 
-# Canonical edge-type aliases: normalize code-review-graph edge names to match
-# graphql_rag names so the unified graph has no redundant relationship types.
-#   FIELD_OF      → OF_TYPE          (GQLField -[OF_TYPE]-> GQLType)
-#   RETURNS       → RETURNS_TYPE     (GQLField -[RETURNS_TYPE]-> GQLType)
-#   ACCEPTS       → USES_INPUT_TYPE  (GQLField -[USES_INPUT_TYPE]-> GQLType)
+# Canonical edge-type aliases: map SQLite internal kinds → prefixed FalkorDB types.
+#   FIELD_OF  → GQL_OF_TYPE          (GQLField -[GQL_OF_TYPE]-> GQLType)
+#   RETURNS   → GQL_RETURNS_TYPE     (GQLField -[GQL_RETURNS_TYPE]-> GQLType)
+#   ACCEPTS   → GQL_USES_INPUT_TYPE  (GQLField -[GQL_USES_INPUT_TYPE]-> GQLType)
 _EDGE_ALIASES: dict[str, str] = {
     # GQL schema edges — align with graphql_rag naming
     "FIELD_OF": "GQL_OF_TYPE",
@@ -181,7 +180,7 @@ def export_to_falkordb(
     # Detect monorepo: only consider sub-folders that actually exist under monorepo_root.
     # Checking all entries in _repo_resolver (which covers the entire system) would
     # incorrectly mark every single-service repo as a monorepo, causing file nodes to
-    # receive repo="src" instead of the canonical service name, breaking BELONGS_TO links.
+    # receive repo="src" instead of the canonical service name, breaking CODE_BELONGS_TO links.
     _is_monorepo = any(
         (monorepo_root / folder).is_dir()
         and _resolve_service_from_file_path(
@@ -221,12 +220,12 @@ def export_to_falkordb(
     # Others   unified key = qualified_name (unchanged)
     qn_to_key: dict[str, str] = {}
 
-    # GQLType ownership (OWNS_TYPE / EXTENDS_TYPE) is managed exclusively by
+    # GQLType ownership (GQL_OWNS_TYPE / GQL_EXTENDS_TYPE) is managed exclusively by
     # graphql_rag which reads the Apollo SDL — the sole source of truth for
     # federation type ownership.  code-review-graph only exports implementation
     # nodes (Function, File, GQLField resolvers, etc.) and must not overwrite
     # ownership edges set by graphql_rag.
-    _gql_type_service: list[tuple[str, str]] = []  # kept for BELONGS_TO service discovery only
+    _gql_type_service: list[tuple[str, str]] = []  # kept for CODE_BELONGS_TO service discovery only
     _all_node_services: set[str] = set()  # all service names seen across File nodes
 
     # Relativized qualified_names of :Node nodes exported this run — used by
@@ -287,7 +286,7 @@ def export_to_falkordb(
                 base_props["params"] = node.params
             base_props.update(_flatten_extra(node.extra))
 
-            # Track all service names from File nodes for BELONGS_TO linking.
+            # Track all service names from File nodes for CODE_BELONGS_TO linking.
             # This ensures non-GQL services (pure gRPC/SQS) also get linked.
             if node.kind == "File" and node_service:
                 _all_node_services.add(node_service)
@@ -469,7 +468,7 @@ def export_to_falkordb(
                 {"svc": svc},
             )
         except Exception as exc:  # noqa: BLE001
-            msg = f"BELONGS_TO link for service '{svc}': {exc}"
+            msg = f"{_EDGE_ALIASES['BELONGS_TO']} link for service '{svc}': {exc}"
             logger.error(msg)
             stats["errors"].append(msg)
 
@@ -529,7 +528,7 @@ def export_to_falkordb(
         except Exception as exc:  # noqa: BLE001
             logger.warning("Could not remove monorepo root service node '%s': %s", service_name, exc)
 
-    # OWNS_TYPE / EXTENDS_TYPE are intentionally NOT exported here.
+    # GQL_OWNS_TYPE / GQL_EXTENDS_TYPE are intentionally NOT exported here.
     # graphql_rag (Apollo SDL ingest) is the sole source of truth for
     # federation type ownership and must not be overwritten.
 
