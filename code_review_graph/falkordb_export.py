@@ -87,10 +87,28 @@ _EDGE_BATCH = 500
 #   RETURNS       → RETURNS_TYPE     (GQLField -[RETURNS_TYPE]-> GQLType)
 #   ACCEPTS       → USES_INPUT_TYPE  (GQLField -[USES_INPUT_TYPE]-> GQLType)
 _EDGE_ALIASES: dict[str, str] = {
-    "FIELD_OF": "OF_TYPE",
-    "RETURNS": "RETURNS_TYPE",
-    "ACCEPTS": "USES_INPUT_TYPE",
+    # GQL schema edges — align with graphql_rag naming
+    "FIELD_OF": "GQL_OF_TYPE",
+    "RETURNS": "GQL_RETURNS_TYPE",
+    "ACCEPTS": "GQL_USES_INPUT_TYPE",
+    # Code structure edges
+    "CONTAINS": "CODE_CONTAINS",
+    "CALLS": "CODE_CALLS",
+    "IMPORTS_FROM": "CODE_IMPORTS_FROM",
+    "REFERENCES": "CODE_REFERENCES",
+    "TESTED_BY": "CODE_TESTED_BY",
+    "BELONGS_TO": "CODE_BELONGS_TO",
+    # GQL resolver edges
+    "RESOLVES": "GQL_RESOLVES",
+    "RESOLVES_EXTERNAL": "GQL_RESOLVES_EXTERNAL",
+    "RESOLVES_REF": "GQL_RESOLVES_REF",
+    "RESOLVES_DELETED": "GQL_RESOLVES_DELETED",
+    "USES_LOADER": "GQL_USES_LOADER",
+    "BACKED_BY": "GQL_BACKED_BY",
+    "DELEGATES_TO": "GQL_DELEGATES_TO",
 }
+
+_NODE_LABEL_PREFIX = "Code"
 
 
 def _relativize_path(file_path: str | None, monorepo_root: Path) -> str:
@@ -359,7 +377,7 @@ def export_to_falkordb(
             try:
                 graph.query(
                     f"UNWIND $rows AS row "
-                    f"MERGE (n:Node:{label} {{qualified_name: row.qualified_name}}) "
+                    f"MERGE (n:Node:{_NODE_LABEL_PREFIX}{label} {{qualified_name: row.qualified_name}}) "
                     f"SET n += row, n.kind = '{label}'",
                     {"rows": label_props},
                 )
@@ -445,9 +463,9 @@ def export_to_falkordb(
                 {"svc": svc, "now": _now},
             )
             graph.query(
-                "MATCH (f:Node:File {repo: $svc}) "
+                f"MATCH (f:Node:{_NODE_LABEL_PREFIX}File {{repo: $svc}}) "
                 "MATCH (s:Service {name: $svc}) "
-                "MERGE (f)-[:BELONGS_TO]->(s)",
+                f"MERGE (f)-[:{_EDGE_ALIASES['BELONGS_TO']}]->(s)",
                 {"svc": svc},
             )
         except Exception as exc:  # noqa: BLE001
